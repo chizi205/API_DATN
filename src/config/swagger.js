@@ -390,8 +390,24 @@ const swaggerDocument = {
       post: {
         tags: ["Member Auth"],
         summary: "Đăng xuất tài khoản",
-        description: "Hủy phiên đăng nhập hiện tại, xóa refresh token liên quan.",
+        description: "Hủy phiên đăng nhập hiện tại. Nếu truyền refresh_token, hệ thống sẽ xóa token của phiên đó. Nếu không truyền, hệ thống sẽ đăng xuất khỏi tất cả các thiết bị.",
         security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  refresh_token: {
+                    type: "string",
+                    description: "JWT Refresh Token cần đăng xuất (Tùy chọn)"
+                  }
+                }
+              }
+            }
+          }
+        },
         responses: {
           200: {
             description: "Đăng xuất thành công",

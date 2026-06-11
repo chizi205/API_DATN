@@ -180,12 +180,21 @@ class AuthService {
     };
   }
 
-  async logout(memberId, refreshTokenId) {
-    if (!memberId || !refreshTokenId) {
-      throw new Error("Thiếu thông tin");
+  async logout(memberId, rawRefreshToken) {
+    if (!memberId) {
+      throw new Error("Không xác định được người dùng");
     }
 
-    await memberRepository.deleteRefreshTokenById(refreshTokenId);
+    if (rawRefreshToken) {
+      const row = await memberRepository.findByRefreshToken(rawRefreshToken);
+      if (row && row.member_id === memberId) {
+        await memberRepository.deleteRefreshTokenByHash(row.token_hash);
+      }
+    } else {
+      // Đăng xuất khỏi tất cả các thiết bị (xóa tất cả refresh token)
+      await memberRepository.deleteAllRefreshTokensByMemberId(memberId);
+    }
+
     return true;
   }
 }

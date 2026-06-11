@@ -67,7 +67,9 @@ const refreshTokenController = async (req, res) => {
 const logoutController = async (req, res) => {
   try {
     const memberId = req.user?.id;
-    await AuthService.logout(memberId);
+    const { refresh_token } = req.body;
+    
+    await AuthService.logout(memberId, refresh_token);
 
     return ApiResponse.success(res, null, "Đăng xuất thành công");
   } catch (error) {

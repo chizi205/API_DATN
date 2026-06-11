@@ -132,7 +132,7 @@ class AuthRepository {
     for (const row of result.rows) {
       const isMatch = await bcrypt.compare(rawToken, row.token_hash);
       if (isMatch) {
-        return row; // trả về cả thông tin member + refresh token
+        return row; 
       }
     }
     return null;
