@@ -29,15 +29,19 @@ class AuthService {
     let member = await memberRepository.findByPhone(phone);
 
     if (member) {
-      const accessToken = createAccessToken({
-        id: member.id,
-        phone: member.phone_number,
-        tier_id: member.tier_id,
-      });
-
+      const accessToken = createAccessToken({ id: member.id, phone: member.phone_number, tier_id: member.tier_id });
       const refreshToken = createRefreshToken({ id: member.id });
 
-      await memberRepository.updateRefreshToken(member.id, refreshToken);
+      const hashedToken = await memberRepository.hashRefreshToken(refreshToken);
+
+      await memberRepository.createRefreshToken({
+        memberId: member.id,
+        tokenHash: hashedToken,
+        deviceName: req?.body?.device_name || null,
+        ipAddress: req?.ip,
+        userAgent: req?.headers['user-agent'],
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
+      });
 
       return {
         isNewUser: false,
@@ -80,7 +84,7 @@ class AuthService {
     }
   }
 
-  async completeRegistration(member_id, { full_name, email, date_of_birth }) {
+  async completeRegistration(member_id, { full_name, email, date_of_birth }, req = null) {
     const updatedMember = await memberRepository.updateProfile(member_id, {
       full_name,
       email: email || null,
@@ -91,17 +95,31 @@ class AuthService {
       throw new Error("Không tìm thấy thành viên");
     }
 
+    // Tạo Access Token
     const accessToken = createAccessToken({
       id: updatedMember.id,
       phone: updatedMember.phone_number,
       tier_id: updatedMember.tier_id,
     });
 
-    const refreshToken = createRefreshToken({
-      id: updatedMember.id,
-    });
+    // Tạo Refresh Token mới
+    const refreshToken = createRefreshToken({ id: updatedMember.id });
 
-    await memberRepository.updateRefreshToken(updatedMember.id, refreshToken);
+    // Hash refresh token
+    const hashedToken = await memberRepository.hashRefreshToken(refreshToken);
+
+    // Xóa các refresh token cũ của user (tùy chọn nhưng nên làm)
+    //await memberRepository.deleteAllRefreshTokensByMemberId(updatedMember.id);
+
+    // Lưu refresh token vào bảng mới
+    await memberRepository.createRefreshToken({
+      memberId: updatedMember.id,
+      tokenHash: hashedToken,
+      deviceName: req?.body?.device_name || null,
+      ipAddress: req?.ip || null,
+      userAgent: req?.headers?.['user-agent'] || null,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
+    });
 
     return {
       access_token: accessToken,
@@ -114,33 +132,47 @@ class AuthService {
       },
     };
   }
-
-  async refreshToken(refresh_token) {
-    if (!refresh_token) {
+  async refreshToken(rawRefreshToken) {
+    if (!rawRefreshToken) {
       throw new Error("Thiếu refresh token");
     }
 
-    const decoded = verifyRefreshToken(refresh_token);
+    // 1. Giải mã refresh token
+    const decoded = verifyRefreshToken(rawRefreshToken);
     if (!decoded) {
       throw new Error("Refresh token không hợp lệ hoặc đã hết hạn");
     }
 
-    const member = await memberRepository.findByRefreshToken(refresh_token);
-    if (!member) {
+    // 2. Tìm refresh token trong bảng mới
+    const row = await memberRepository.findByRefreshToken(rawRefreshToken);
+    if (!row) {
       throw new Error("Refresh token không hợp lệ");
     }
 
+    // 3. Xóa refresh token cũ (Refresh Token Rotation - khuyến nghị)
+    await memberRepository.deleteRefreshTokenByHash(row.token_hash);
+
+    // 4. Tạo Access Token mới
     const newAccessToken = createAccessToken({
-      id: member.id,
-      phone: member.phone_number,
-      tier_id: member.tier_id,
+      id: row.id,
+      phone: row.phone_number,
+      tier_id: row.tier_id,
     });
 
-    const newRefreshToken = createRefreshToken({
-      id: member.id,
-    });
+    // 5. Tạo Refresh Token mới
+    const newRefreshToken = createRefreshToken({ id: row.id });
 
-    await memberRepository.updateRefreshToken(member.id, newRefreshToken);
+    // 6. Hash và lưu vào bảng refresh_tokens
+    const newHashedToken = await memberRepository.hashRefreshToken(newRefreshToken);
+
+    await memberRepository.createRefreshToken({
+      memberId: row.id,
+      tokenHash: newHashedToken,
+      deviceName: row.device_name,           // giữ lại thông tin thiết bị cũ
+      ipAddress: row.ip_address,
+      userAgent: row.user_agent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
+    });
 
     return {
       access_token: newAccessToken,
@@ -148,12 +180,12 @@ class AuthService {
     };
   }
 
-  async logout(memberId) {
-    if (!memberId) {
-      throw new Error("Không xác định được người dùng");
+  async logout(memberId, refreshTokenId) {
+    if (!memberId || !refreshTokenId) {
+      throw new Error("Thiếu thông tin");
     }
 
-    await memberRepository.clearRefreshToken(memberId);
+    await memberRepository.deleteRefreshTokenById(refreshTokenId);
     return true;
   }
 }

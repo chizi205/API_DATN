@@ -18,24 +18,12 @@ class AuthRepository {
     return await bcrypt.hash(token, saltRounds);
   }
 
-  async findAll() {
-    const result = await pool.query(
-      "SELECT * FROM members ORDER BY created_at DESC",
-    );
-    return result.rows;
-  }
-
-  async findById(id) {
-    const result = await pool.query("SELECT * FROM members WHERE id = $1", [
-      id,
-    ]);
-    return result.rows[0];
-  }
+  // ==================== MEMBER ====================
 
   async findByPhone(phone) {
     const result = await pool.query(
       "SELECT * FROM members WHERE phone_number = $1",
-      [phone],
+      [phone]
     );
     return result.rows[0];
   }
@@ -63,26 +51,18 @@ class AuthRepository {
     const barcode = this.generateBarcode(newMember.id);
 
     const updateQuery = `
-      UPDATE members 
-      SET barcode = $1 
-      WHERE id = $2 
-      RETURNING *
+      UPDATE members SET barcode = $1 WHERE id = $2 RETURNING *
     `;
-
     const updateResult = await pool.query(updateQuery, [barcode, newMember.id]);
     return updateResult.rows[0];
   }
 
   async getDefaultTier() {
-    const query = `
-    SELECT id 
-    FROM membership_tiers 
-    ORDER BY min_points ASC 
-    LIMIT 1
-  `;
+    const query = `SELECT id FROM membership_tiers ORDER BY min_points ASC LIMIT 1`;
     const result = await pool.query(query);
     return result.rows[0] ? result.rows[0].id : null;
   }
+
   async updateProfile(memberId, data) {
     const fields = [];
     const values = [];
@@ -92,82 +72,86 @@ class AuthRepository {
       fields.push(`full_name = $${index++}`);
       values.push(data.full_name);
     }
-
     if (data.email !== undefined) {
       fields.push(`email = $${index++}`);
       values.push(data.email);
     }
-
     if (data.date_of_birth !== undefined) {
       const isoDate = convertDateToISO(data.date_of_birth);
       fields.push(`date_of_birth = $${index++}`);
       values.push(isoDate);
     }
-
     if (data.gender !== undefined) {
-      const allowedGenders = ["MALE", "FEMALE", "OTHER", "UNKNOWN"];
-      const normalizedGender = String(data.gender).toUpperCase().trim();
-
-      if (!allowedGenders.includes(normalizedGender)) {
-        throw new Error(
-          "Giá trị giới tính không hợp lệ. Chỉ chấp nhận: MALE, FEMALE, OTHER, UNKNOWN",
-        );
+      const allowed = ["MALE", "FEMALE", "OTHER", "UNKNOWN"];
+      const normalized = String(data.gender).toUpperCase().trim();
+      if (!allowed.includes(normalized)) {
+        throw new Error("Giá trị giới tính không hợp lệ");
       }
-
       fields.push(`gender = $${index++}`);
-      values.push(normalizedGender);
+      values.push(normalized);
     }
 
     if (fields.length === 0) return null;
 
     fields.push(`updated_at = NOW()`);
-
-    const query = `
-    UPDATE members 
-    SET ${fields.join(", ")}
-    WHERE id = $${index}
-    RETURNING *
-  `;
     values.push(memberId);
 
+    const query = `UPDATE members SET ${fields.join(", ")} WHERE id = $${index} RETURNING *`;
     const result = await pool.query(query, values);
     return result.rows[0];
   }
 
-  async updateRefreshToken(memberId, refreshToken) {
-    const hashedToken = await this.hashRefreshToken(refreshToken);
+  // ==================== REFRESH TOKEN (Bảng mới) ====================
 
+  async createRefreshToken({ memberId, tokenHash, deviceName, ipAddress, userAgent, expiresAt }) {
     const query = `
-    UPDATE members 
-    SET refresh_token_hash = $1, updated_at = NOW()
-    WHERE id = $2
-    RETURNING *
-  `;
-    const result = await pool.query(query, [hashedToken, memberId]);
+      INSERT INTO refresh_tokens 
+        (member_id, token_hash, device_name, ip_address, user_agent, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
+    const result = await pool.query(query, [
+      memberId,
+      tokenHash,
+      deviceName || null,
+      ipAddress || null,
+      userAgent || null,
+      expiresAt,
+    ]);
     return result.rows[0];
   }
 
   async findByRefreshToken(rawToken) {
-    const result = await pool.query(
-      "SELECT * FROM members WHERE refresh_token_hash IS NOT NULL",
-    );
+    const result = await pool.query(`
+      SELECT rt.*, m.* 
+      FROM refresh_tokens rt
+      JOIN members m ON rt.member_id = m.id
+      WHERE rt.expires_at > NOW()
+    `);
 
-    for (const member of result.rows) {
-      const isMatch = await bcrypt.compare(rawToken, member.refresh_token_hash);
+    for (const row of result.rows) {
+      const isMatch = await bcrypt.compare(rawToken, row.token_hash);
       if (isMatch) {
-        return member;
+        return row; // trả về cả thông tin member + refresh token
       }
     }
     return null;
   }
-  async clearRefreshToken(memberId) {
-    const query = `
-    UPDATE members 
-    SET refresh_token_hash = NULL, updated_at = NOW()
-    WHERE id = $1
-  `;
-    await pool.query(query, [memberId]);
+
+  async deleteRefreshTokenByHash(tokenHash) {
+    await pool.query(`DELETE FROM refresh_tokens WHERE token_hash = $1`, [tokenHash]);
+    return true;
+  }
+
+  async deleteAllRefreshTokensByMemberId(memberId) {
+    await pool.query(`DELETE FROM refresh_tokens WHERE member_id = $1`, [memberId]);
+    return true;
+  }
+
+  async deleteRefreshTokenById(id) {
+    await pool.query(`DELETE FROM refresh_tokens WHERE id = $1`, [id]);
     return true;
   }
 }
+
 module.exports = new AuthRepository();
