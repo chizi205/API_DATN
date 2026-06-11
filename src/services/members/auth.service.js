@@ -19,7 +19,7 @@ class AuthService {
     };
   }
 
-  async verifyOTP(phone, code) {
+  async verifyOTP(phone, code, req) {
     const otpResult = await verifyOTP(phone, code);
 
     if (!otpResult.success || !otpResult.valid) {
@@ -40,7 +40,7 @@ class AuthService {
         deviceName: req?.body?.device_name || null,
         ipAddress: req?.ip,
         userAgent: req?.headers['user-agent'],
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
       return {
