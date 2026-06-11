@@ -21,7 +21,7 @@ const sendOtpController = async (req, res) => {
 const verifyOtpController = async (req, res) => {
   try {
     const { phone, code } = req.body;
-    const result = await AuthService.verifyOTP(phone, code);
+    const result = await AuthService.verifyOTP(phone, code,req);
 
     const message = result.isNewUser
       ? "Xác thực OTP thành công. Vui lòng hoàn tất thông tin đăng ký"

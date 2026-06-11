@@ -40,7 +40,7 @@ class AuthService {
         deviceName: req?.body?.device_name || null,
         ipAddress: req?.ip,
         userAgent: req?.headers['user-agent'],
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
       });
 
       return {
