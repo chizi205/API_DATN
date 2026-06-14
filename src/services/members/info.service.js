@@ -21,7 +21,7 @@ class MemberService {
   }
   async updateProfile(memberId, data) {
     if (data.gender !== undefined) {
-      console.log(data)
+      console.log(data);
       const allowedGenders = ["MALE", "FEMALE", "OTHER", "UNKNOWN"];
       const normalizedGender = String(data.gender).toUpperCase().trim();
 
@@ -39,6 +39,7 @@ class MemberService {
 
     return await this.getProfile(memberId);
   }
+
 }
 
 module.exports = new MemberService();

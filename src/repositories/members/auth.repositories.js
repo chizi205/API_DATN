@@ -18,12 +18,10 @@ class AuthRepository {
     return await bcrypt.hash(token, saltRounds);
   }
 
-  // ==================== MEMBER ====================
-
   async findByPhone(phone) {
     const result = await pool.query(
       "SELECT * FROM members WHERE phone_number = $1",
-      [phone]
+      [phone],
     );
     return result.rows[0];
   }
@@ -101,9 +99,14 @@ class AuthRepository {
     return result.rows[0];
   }
 
-  // ==================== REFRESH TOKEN (Bảng mới) ====================
-
-  async createRefreshToken({ memberId, tokenHash, deviceName, ipAddress, userAgent, expiresAt }) {
+  async createRefreshToken({
+    memberId,
+    tokenHash,
+    deviceName,
+    ipAddress,
+    userAgent,
+    expiresAt,
+  }) {
     const query = `
       INSERT INTO refresh_tokens 
         (member_id, token_hash, device_name, ip_address, user_agent, expires_at)
@@ -132,19 +135,23 @@ class AuthRepository {
     for (const row of result.rows) {
       const isMatch = await bcrypt.compare(rawToken, row.token_hash);
       if (isMatch) {
-        return row; 
+        return row;
       }
     }
     return null;
   }
 
   async deleteRefreshTokenByHash(tokenHash) {
-    await pool.query(`DELETE FROM refresh_tokens WHERE token_hash = $1`, [tokenHash]);
+    await pool.query(`DELETE FROM refresh_tokens WHERE token_hash = $1`, [
+      tokenHash,
+    ]);
     return true;
   }
 
   async deleteAllRefreshTokensByMemberId(memberId) {
-    await pool.query(`DELETE FROM refresh_tokens WHERE member_id = $1`, [memberId]);
+    await pool.query(`DELETE FROM refresh_tokens WHERE member_id = $1`, [
+      memberId,
+    ]);
     return true;
   }
 

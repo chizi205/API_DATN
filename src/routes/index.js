@@ -9,4 +9,8 @@ router.use("/member", require("./members/device.routes"));
 //employee
 router.use("/employee", require("./employees/auth.routes"));
 router.use("/employee", require("./employees/product.routes"));
+
+//invoice
+router.use("/invoice", require("./invoices/invoices.routes"));
+
 module.exports = router;

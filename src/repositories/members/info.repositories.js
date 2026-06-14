@@ -154,6 +154,23 @@ class InfoRepository {
       },
     };
   }
+  async getMemberPointsMultiplier(memberId, client = null) {
+    const db = client || pool;
+
+    const query = `
+      SELECT 
+        m.id AS member_id,
+        m.tier_id,
+        t.tier_name AS tier_name,
+        t.point_multiplier
+      FROM members m
+      LEFT JOIN membership_tiers t ON m.tier_id = t.id
+      WHERE m.id = $1
+    `;
+
+    const { rows } = await db.query(query, [memberId]);
+    return rows[0] || null;
+  }
 }
 
 module.exports = new InfoRepository();
