@@ -41,6 +41,10 @@ const swaggerDocument = {
       name: "Employee Invoices",
       description: "Các API quản lý hóa đơn (chỉ dành cho Nhân viên)",
     },
+    {
+      name: "Payment Methods",
+      description: "Các API quản lý và tra cứu phương thức thanh toán",
+    },
   ],
   components: {
     securitySchemes: {
@@ -1083,6 +1087,142 @@ const swaggerDocument = {
           },
           401: {
             description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+        },
+      },
+    },
+    "/api/member/phone": {
+      get: {
+        tags: ["Member Info"],
+        summary: "Tìm thành viên theo số điện thoại",
+        description: "Tìm kiếm thông tin thành viên (ID, họ tên, hạng thẻ, hệ số nhân điểm) dựa trên số điện thoại. Chỉ dành cho Nhân viên.",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/SendOtpRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Tìm thành viên thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 12 },
+                            full_name: { type: "string", example: "Nguyễn Văn B" },
+                            tier_name: { type: "string", example: "SILVER" },
+                            point_multiplier: { type: "number", example: 1.0 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+          404: {
+            description: "Không tìm thấy thành viên với số điện thoại này",
+          },
+        },
+      },
+    },
+    "/api/paymentMethod": {
+      get: {
+        tags: ["Payment Methods"],
+        summary: "Lấy danh sách phương thức thanh toán đang hoạt động",
+        description: "Lấy toàn bộ phương thức thanh toán có trạng thái kích hoạt (active). Chỉ dành cho Nhân viên.",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Lấy danh sách thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              name: { type: "string", example: "Tiền mặt" },
+                              code: { type: "string", example: "cash" },
+                              description: { type: "string", example: "Thanh toán bằng tiền mặt" },
+                              is_active: { type: "boolean", example: true },
+                              created_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09.000Z" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+        },
+      },
+    },
+    "/api/paymentMethod/all": {
+      get: {
+        tags: ["Payment Methods"],
+        summary: "Lấy tất cả danh sách phương thức thanh toán",
+        description: "Lấy toàn bộ phương thức thanh toán không phân biệt trạng thái kích hoạt.",
+        responses: {
+          200: {
+            description: "Lấy danh sách thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              name: { type: "string", example: "Tiền mặt" },
+                              code: { type: "string", example: "cash" },
+                              description: { type: "string", example: "Thanh toán bằng tiền mặt" },
+                              is_active: { type: "boolean", example: true },
+                              created_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09.000Z" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
           },
         },
       },
