@@ -22,9 +22,7 @@ class DeviceRepository {
     return result.rows[0];
   }
 
-  /**
-   * Lấy danh sách token active của một user
-   */
+
   async getActiveTokensByUserId(userId) {
     const query = `
       SELECT token 
@@ -35,9 +33,6 @@ class DeviceRepository {
     return result.rows.map(row => row.token);
   }
 
-  /**
-   * Vô hiệu hóa token (khi user logout hoặc token hết hạn)
-   */
   async deactivateToken(fcmToken) {
     const query = `
       UPDATE user_devices 

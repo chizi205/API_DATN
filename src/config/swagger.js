@@ -37,6 +37,10 @@ const swaggerDocument = {
       name: "Employee Products & Categories",
       description: "Các API quản lý và tra cứu sản phẩm/danh mục dành cho Nhân viên",
     },
+    {
+      name: "Employee Invoices",
+      description: "Các API quản lý hóa đơn (chỉ dành cho Nhân viên)",
+    },
   ],
   components: {
     securitySchemes: {
@@ -191,6 +195,77 @@ const swaggerDocument = {
             type: "string",
             example: "123456",
             description: "Mật khẩu đăng nhập",
+          },
+        },
+      },
+      CreateDraftInvoiceRequest: {
+        type: "object",
+        required: ["items"],
+        properties: {
+          member_id: {
+            type: "integer",
+            example: 12,
+            description: "ID thành viên (tùy chọn, để tích điểm và áp dụng hệ số điểm)",
+          },
+          table_number: {
+            type: "string",
+            maxLength: 20,
+            example: "Bàn 05",
+            description: "Số bàn (tùy chọn)",
+          },
+          tax_amount: {
+            type: "number",
+            minimum: 0,
+            example: 10000,
+            description: "Tiền thuế VAT (tùy chọn, mặc định 0)",
+          },
+          service_charge: {
+            type: "number",
+            minimum: 0,
+            example: 5000,
+            description: "Phí dịch vụ (tùy chọn, mặc định 0)",
+          },
+          points_multiplier: {
+            type: "number",
+            minimum: 0,
+            example: 1.0,
+            description: "Hệ số nhân điểm tích lũy (tùy chọn, mặc định 1.0)",
+          },
+          items: {
+            type: "array",
+            minItems: 1,
+            description: "Danh sách món ăn/sản phẩm trong hóa đơn",
+            items: {
+              type: "object",
+              required: ["product_name", "quantity", "unit_price"],
+              properties: {
+                product_id: {
+                  type: "integer",
+                  minimum: 1,
+                  example: 101,
+                  description: "ID sản phẩm (tùy chọn)",
+                },
+                product_name: {
+                  type: "string",
+                  minLength: 2,
+                  maxLength: 255,
+                  example: "Cà phê sữa đá",
+                  description: "Tên món ăn",
+                },
+                quantity: {
+                  type: "integer",
+                  minimum: 1,
+                  example: 2,
+                  description: "Số lượng món",
+                },
+                unit_price: {
+                  type: "number",
+                  minimum: 0,
+                  example: 29000,
+                  description: "Đơn giá của món",
+                },
+              },
+            },
           },
         },
       },
@@ -670,6 +745,29 @@ const swaggerDocument = {
         },
       },
     },
+    "/api/employee/logout": {
+      post: {
+        tags: ["Employee Auth"],
+        summary: "Đăng xuất tài khoản nhân viên",
+        description: "Hủy phiên đăng nhập hiện tại của nhân viên dựa trên Access Token.",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Đăng xuất thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ApiResponse",
+                },
+              },
+            },
+          },
+          401: {
+            description: "Chưa xác thực hoặc token không hợp lệ",
+          },
+        },
+      },
+    },
     "/api/employee/products": {
       get: {
         tags: ["Employee Products & Categories"],
@@ -906,6 +1004,85 @@ const swaggerDocument = {
           },
           404: {
             description: "Không tìm thấy danh mục",
+          },
+        },
+      },
+    },
+    "/api/invoice/draft": {
+      post: {
+        tags: ["Employee Invoices"],
+        summary: "Tạo hóa đơn nháp (Draft Invoice)",
+        description: "Tạo một hóa đơn nháp mới cho bàn ăn, tính toán tổng tiền tạm tính, điểm tích lũy dự kiến cho thành viên.",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateDraftInvoiceRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Tạo hóa đơn nháp thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            invoice_code: { type: "string", example: "INV-20260615-000001" },
+                            employee_id: { type: "integer", example: 1 },
+                            branch_id: { type: "integer", example: 2 },
+                            member_id: { type: "integer", nullable: true, example: 12 },
+                            table_number: { type: "string", nullable: true, example: "Bàn 05" },
+                            sub_total: { type: "number", example: 58000 },
+                            discount_amount: { type: "number", example: 0 },
+                            voucher_discount: { type: "number", example: 0 },
+                            final_amount: { type: "number", example: 73000 },
+                            points_earned: { type: "integer", example: 5 },
+                            points_multiplier: { type: "number", example: 1.0 },
+                            status: { type: "string", example: "DRAFT" },
+                            tax_amount: { type: "number", example: 10000 },
+                            service_charge: { type: "number", example: 5000 },
+                            created_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09Z" },
+                            updated_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09Z" },
+                            items: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  invoice_id: { type: "integer", example: 1 },
+                                  product_id: { type: "integer", nullable: true, example: 101 },
+                                  product_name: { type: "string", example: "Cà phê sữa đá" },
+                                  quantity: { type: "integer", example: 2 },
+                                  unit_price: { type: "number", example: 29000 },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          400: {
+            description: "Dữ liệu yêu cầu không hợp lệ",
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
           },
         },
       },
