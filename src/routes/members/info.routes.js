@@ -2,13 +2,15 @@ const express = require("express");
 const router = express.Router();
 const authenticate = require("../../middleware/auth");
 const updateProfileValidation = require("../../validations/updateProfile.validation");
+const sendOtpValidation = require("../../validations/sendOtp.validation");
 const validate = require("../../middleware/validate");
 const {
   getCardController,
   getProfileController,
-  updateProfileController
+  updateProfileController,
+  getMemberByPhone,
 } = require("../../controllers/members/info.controller");
-
+const authenticateEmployee = require("../../middleware/employeeAuth.middleware");
 router.get("/card", authenticate, getCardController);
 router.get("/profile", authenticate, getProfileController);
 router.put(
@@ -17,5 +19,12 @@ router.put(
   validate,
   authenticate,
   updateProfileController,
+);
+router.get(
+  "/phone",
+  sendOtpValidation,
+  validate,
+  authenticateEmployee,
+  getMemberByPhone,
 );
 module.exports = router;

@@ -171,6 +171,23 @@ class InfoRepository {
     const { rows } = await db.query(query, [memberId]);
     return rows[0] || null;
   }
+  async searchByPhone(phoneNumber, client = null) {
+    const db = client || pool;
+
+    const query = `
+    SELECT 
+      m.id,
+      m.full_name,
+      t.tier_name AS tier_name,
+      t.point_multiplier
+    FROM members m
+    LEFT JOIN membership_tiers t ON m.tier_id = t.id
+    WHERE m.phone_number = $1
+  `;
+
+    const { rows } = await db.query(query, [phoneNumber]);
+    return rows[0] || null;
+  }
 }
 
 module.exports = new InfoRepository();

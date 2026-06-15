@@ -1,5 +1,6 @@
 const infoRepository = require("../../repositories/members/info.repositories");
 const AuthRepo = require("../../repositories/members/auth.repositories");
+const { normalizePhoneNumber } = require("../../utils/normalizePhoneNumber");
 class MemberService {
   async getCard(memberId) {
     const profile = await infoRepository.getMemberCard(memberId);
@@ -40,6 +41,21 @@ class MemberService {
     return await this.getProfile(memberId);
   }
 
+  async getMemberByPhone(phoneNumber) {
+    if (!phoneNumber) {
+      throw new Error("Vui lòng nhập số điện thoại");
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+    const member = await infoRepository.searchByPhone(normalizedPhone);
+
+    if (!member) {
+      throw new Error("Không tìm thấy thành viên với số điện thoại này");
+    }
+
+    return member;
+  }
 }
 
 module.exports = new MemberService();

@@ -13,4 +13,7 @@ router.use("/employee", require("./employees/product.routes"));
 //invoice
 router.use("/invoice", require("./invoices/invoices.routes"));
 
+//paymentMethod
+router.use("/paymentMethod", require("./paymentMethods/paymentMethod.routes"));
+
 module.exports = router;

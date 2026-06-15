@@ -26,6 +26,7 @@ class InvoiceController {
       };
 
       const invoice = await invoiceService.createDraftInvoice(data);
+      console.log(invoice);
 
       return ApiResponse.success(res, invoice, "Tạo hóa đơn nháp thành công");
     } catch (error) {
@@ -33,7 +34,6 @@ class InvoiceController {
       return ApiResponse.error(res, error.message, 500);
     }
   }
-
 
   async getInvoiceById(req, res) {
     try {

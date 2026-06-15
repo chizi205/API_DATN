@@ -85,8 +85,23 @@ const updateProfileController = async (req, res) => {
     );
   }
 };
+const getMemberByPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    console.log(phone)
+
+    const member = await memberService.getMemberByPhone(phone);
+
+    return ApiResponse.success(res, member, "Tìm thành viên thành công");
+  } catch (error) {
+    console.error("[Get Member By Phone Error]", error);
+    const statusCode = error.message.includes("Không tìm thấy") ? 404 : 400;
+    return ApiResponse.error(res, error.message, statusCode);
+  }
+};
 module.exports = {
   getCardController,
   getProfileController,
   updateProfileController,
+  getMemberByPhone,
 };
