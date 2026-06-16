@@ -16,4 +16,8 @@ router.use("/invoice", require("./invoices/invoices.routes"));
 //paymentMethod
 router.use("/paymentMethod", require("./paymentMethods/paymentMethod.routes"));
 
+//webhook
+router.use("/webhook", require("./webhooks/payos.routes"));
+
+
 module.exports = router;

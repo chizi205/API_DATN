@@ -188,6 +188,32 @@ class InfoRepository {
     const { rows } = await db.query(query, [phoneNumber]);
     return rows[0] || null;
   }
+  async addPoints(memberId, pointsToAdd, client = null) {
+    const db = client || pool;
+
+    if (!memberId || !pointsToAdd || pointsToAdd <= 0) {
+      return null;
+    }
+
+    const query = `
+    UPDATE members 
+    SET 
+      current_points = current_points + $1,
+      total_accumulated_points = total_accumulated_points + $1,
+      last_activity_date = CURRENT_DATE,
+      updated_at = NOW()
+    WHERE id = $2
+    RETURNING 
+      id, 
+      phone_number, 
+      full_name, 
+      current_points, 
+      total_accumulated_points;
+  `;
+
+    const { rows } = await db.query(query, [pointsToAdd, memberId]);
+    return rows[0];
+  }
 }
 
 module.exports = new InfoRepository();

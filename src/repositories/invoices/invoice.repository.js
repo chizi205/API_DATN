@@ -157,6 +157,105 @@ class InvoiceRepository {
 
     return rows[0];
   }
+  async findById(id, client = null) {
+    const db = client || pool;
+
+    const query = `
+      SELECT 
+        i.*,
+        pm.name AS payment_method_name,
+        pm.code AS payment_method_code
+      FROM invoices i
+      LEFT JOIN payment_methods pm ON i.payment_method_id = pm.id
+      WHERE i.id = $1
+    `;
+
+    const { rows } = await db.query(query, [id]);
+    return rows[0] || null;
+  }
+
+  async markAsPaid(invoiceId, paymentMethod, paymentMethodId, client = null) {
+    const db = client || pool;
+
+    const query = `
+      UPDATE invoices 
+      SET 
+        status = 'COMPLETED',
+        payment_method_id = $1,
+        payment_method = $2,
+        paid_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $3 
+      RETURNING 
+        id, 
+        invoice_code, 
+        status, 
+        payment_method_id, 
+        paid_at,
+        final_amount,
+        member_id,
+        points_earned,
+        points_multiplier,
+        applied_member_voucher_id;
+    `;
+
+    const { rows } = await db.query(query, [
+      paymentMethodId,
+      paymentMethod,
+      invoiceId,
+    ]);
+    return rows[0];
+  }
+  async updatePaymentMethod(
+    invoiceId,
+    paymentMethod,
+    paymentMethodId,
+    client = null,
+  ) {
+    const db = client || pool;
+
+    const query = `
+      UPDATE invoices 
+      SET 
+        payment_method_id = $1,
+        payment_method = $2,
+        updated_at = NOW()
+      WHERE id = $3 
+      RETURNING 
+        id, 
+        invoice_code, 
+        status, 
+        payment_method_id, 
+        paid_at,
+        final_amount,
+        member_id,
+        points_earned,
+        points_multiplier,
+        applied_member_voucher_id;
+    `;
+
+    const { rows } = await db.query(query, [
+      paymentMethodId,
+      paymentMethod,
+      invoiceId,
+    ]);
+    return rows[0];
+  }
+  async markAsFailed(invoiceId, client = null) {
+    const db = client || pool;
+
+    const query = `
+    UPDATE invoices 
+    SET 
+      status = 'DRAFT',           
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING id, invoice_code, status, updated_at;
+  `;
+
+    const { rows } = await db.query(query, [invoiceId]);
+    return rows[0];
+  }
 }
 
 module.exports = new InvoiceRepository();

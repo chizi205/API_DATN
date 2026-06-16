@@ -26,7 +26,6 @@ class InvoiceController {
       };
 
       const invoice = await invoiceService.createDraftInvoice(data);
-      console.log(invoice);
 
       return ApiResponse.success(res, invoice, "Tạo hóa đơn nháp thành công");
     } catch (error) {
@@ -35,10 +34,49 @@ class InvoiceController {
     }
   }
 
+  async checkoutInvoice(req, res) {
+    try {
+      const { id } = req.params;
+      const { payment_method_id } = req.body;
+
+      if (!payment_method_id) {
+        return ApiResponse.error(
+          res,
+          "Vui lòng chọn phương thức thanh toán",
+          400,
+        );
+      }
+
+      const result = await invoiceService.checkoutInvoice(
+        parseInt(id),
+        parseInt(payment_method_id),
+      );
+
+      if (result.type === "cash") {
+        return ApiResponse.success(
+          res,
+          result,
+          "Thanh toán tiền mặt thành công",
+        );
+      } else if (result.type === "payos") {
+        return ApiResponse.success(
+          res,
+          result,
+          "Tạo link thanh toán PayOS thành công",
+        );
+      }
+
+      return ApiResponse.success(res, result, "Checkout thành công");
+    } catch (error) {
+      console.error("[Checkout Controller Error]", error);
+      return ApiResponse.error(res, error.message, 400);
+    }
+  }
+
   async getInvoiceById(req, res) {
     try {
       const { id } = req.params;
-      //const invoice = await invoiceService.getInvoiceById(id);
+      const invoice = await invoiceService.getInvoiceById(id);
 
       return ApiResponse.success(res, null, "Lấy hóa đơn thành công");
     } catch (error) {

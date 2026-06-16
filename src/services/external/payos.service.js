@@ -1,42 +1,72 @@
-const PayOS = require("@payos/node");
+const axios = require("axios");
+const crypto = require("crypto");
+const invoiceService = require("../invoices/invoice.service");
 
-const payos = new PayOS(
-  process.env.PAYOS_CLIENT_ID,
-  process.env.PAYOS_API_KEY,
-  process.env.PAYOS_CHECKSUM_KEY,
-);
+const createPaymentLink = async (invoice) => {
+  const orderCode = Number(invoice.id);
+  const amount = Math.round(Number(invoice.final_amount));
 
-const createPayOSPayment = async (req, res) => {
+  if (isNaN(amount) || amount <= 0) {
+    throw new Error(`Số tiền không hợp lệ: ${invoice.final_amount}`);
+  }
+  if (amount < 1000) {
+    throw new Error(`Số tiền quá nhỏ (tối thiểu 1000 VNĐ)`);
+  }
+
+  const body = {
+    orderCode: orderCode,
+    amount: amount,
+    description: `INV-${invoice.invoice_code}`.slice(0, 25),
+    returnUrl: `${process.env.PUBLIC_URL}/payment-success`,
+    cancelUrl: `${process.env.PUBLIC_URL}/payment-cancel`,
+  };
+
+  const signData = [
+    `amount=${body.amount}`,
+    `cancelUrl=${body.cancelUrl}`,
+    `description=${body.description}`,
+    `orderCode=${body.orderCode}`,
+    `returnUrl=${body.returnUrl}`,
+  ].join("&");
+
+  const signature = crypto
+    .createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY)
+    .update(signData)
+    .digest("hex");
+
+  const bodyWithSignature = {
+    ...body,
+    signature,
+  };
+
   try {
-    const { id } = req.params;
+    const res = await axios.post(
+      "https://api-merchant.payos.vn/v2/payment-requests",
+      bodyWithSignature,
+      {
+        headers: {
+          "x-client-id": process.env.PAYOS_CLIENT_ID,
+          "x-api-key": process.env.PAYOS_API_KEY,
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-    const invoice = await invoiceService.getInvoiceById(id);
-    if (!invoice) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Hóa đơn không tồn tại" });
+    if (!res.data || res.data.code !== "00") {
+      throw new Error(res.data?.desc || "Lỗi từ PayOS");
     }
 
-    const paymentData = {
-      orderCode: Number(invoice.id),
-      amount: Number(invoice.final_amount),
-      description: `Thanh toan ${invoice.invoice_code}`,
-      returnUrl: `${process.env.FRONTEND_URL}/payment-success`,
-      cancelUrl: `${process.env.FRONTEND_URL}/payment-cancel`,
-    };
-
-    const paymentLink = await payos.createPaymentLink(paymentData);
-
-    return res.json({
-      success: true,
-      data: {
-        checkoutUrl: paymentLink.checkoutUrl, 
-        qrCode: paymentLink.qrCode, 
-        orderCode: paymentLink.orderCode,
-      },
-    });
-  } catch (error) {
-    console.error("Create PayOS Payment Error:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.data.data;
+  } catch (err) {
+    console.error("PayOS Error:", err.response?.data || err.message);
+    throw new Error(
+      err.response?.data?.desc ||
+        err.message ||
+        "Lỗi khi tạo link thanh toán PayOS",
+    );
   }
+};
+
+module.exports = {
+  createPaymentLink,
 };

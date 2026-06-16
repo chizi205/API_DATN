@@ -44,9 +44,6 @@ class PaymentMethodRepository {
     return rows[0] || null;
   }
 
-  /**
-   * Lấy theo code (ví dụ: 'payos', 'cash')
-   */
   async findByCode(code, client = null) {
     const db = client || pool;
 
