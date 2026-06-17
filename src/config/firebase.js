@@ -1,8 +1,13 @@
 const admin = require("firebase-admin");
 
 if (!admin.apps.length) {
-  const serviceAccount = require("../thongbao-27dcc-firebase-adminsdk-fbsvc-f0ba2f487f.json");
+  let serviceAccount;
 
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    serviceAccount = require("../thongbao-27dcc-firebase-adminsdk-fbsvc-1fcb514bcd.json");
+  }
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });

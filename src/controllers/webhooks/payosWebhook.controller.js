@@ -43,9 +43,10 @@ class PayosWebhookController {
             webhookPayload.data.amount,
             client,
           );
+          let finalPoints = 0;
 
           if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
-            const finalPoints = Math.floor(
+            finalPoints = Math.floor(
               updatedInvoice.points_earned *
                 (updatedInvoice.points_multiplier || 1),
             );

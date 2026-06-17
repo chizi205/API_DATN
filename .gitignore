@@ -1,1 +1,8 @@
 .env
+# Firebase / Google Cloud Service Account keys
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+firebase-adminsdk-*.json
+*firebase*.json
+google*.json
+credentials.json

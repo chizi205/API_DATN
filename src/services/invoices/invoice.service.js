@@ -224,7 +224,6 @@ class InvoiceService {
       invoiceId,
       payosMethod.code,
       payosMethod.id,
-      client,
     );
 
     return updatedInvoice;
