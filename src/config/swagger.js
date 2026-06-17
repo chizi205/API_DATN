@@ -45,6 +45,10 @@ const swaggerDocument = {
       name: "Payment Methods",
       description: "Các API quản lý và tra cứu phương thức thanh toán",
     },
+    {
+      name: "Webhooks",
+      description: "Các API webhook tích hợp dịch vụ bên ngoài (ví dụ: PayOS)",
+    },
   ],
   components: {
     securitySchemes: {
@@ -1223,6 +1227,164 @@ const swaggerDocument = {
                 },
               },
             },
+          },
+        },
+      },
+    },
+    "/api/invoice/{id}/checkout": {
+      post: {
+        tags: ["Employee Invoices"],
+        summary: "Xử lý checkout hóa đơn",
+        description: "Thực hiện thanh toán cho hóa đơn bằng phương thức tiền mặt hoặc tạo link thanh toán PayOS. Chỉ dành cho Nhân viên.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID của hóa đơn cần checkout",
+            schema: { type: "integer" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["payment_method_id"],
+                properties: {
+                  payment_method_id: {
+                    type: "integer",
+                    example: 2,
+                    description: "ID của phương thức thanh toán",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Checkout thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          oneOf: [
+                            {
+                              type: "object",
+                              properties: {
+                                type: { type: "string", example: "cash" },
+                                message: { type: "string", example: "Thanh toán tiền mặt thành công" },
+                                invoice: {
+                                  type: "object",
+                                  properties: {
+                                    id: { type: "integer", example: 1 },
+                                    status: { type: "string", example: "COMPLETED" },
+                                  },
+                                },
+                              },
+                            },
+                            {
+                              type: "object",
+                              properties: {
+                                type: { type: "string", example: "payos" },
+                                message: { type: "string", example: "Tạo link thanh toán PayOS thành công" },
+                                checkout_url: { type: "string", example: "https://pay.payos.vn/web/..." },
+                                qr_code: { type: "string", example: "000201010212..." },
+                                order_code: { type: "integer", example: 1 },
+                                invoice_id: { type: "integer", example: 1 },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ hoặc lỗi nghiệp vụ",
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+        },
+      },
+    },
+    "/api/webhook/payos": {
+      post: {
+        tags: ["Webhooks"],
+        summary: "Webhook nhận kết quả thanh toán từ PayOS",
+        description: "Nhận thông báo trạng thái thanh toán tự động từ cổng PayOS để hoàn tất hóa đơn.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["success", "data"],
+                properties: {
+                  success: {
+                    type: "boolean",
+                    example: true,
+                  },
+                  data: {
+                    type: "object",
+                    required: ["orderCode", "amount", "code"],
+                    properties: {
+                      orderCode: {
+                        type: "integer",
+                        example: 1,
+                        description: "ID hóa đơn tương ứng với orderCode gửi sang PayOS",
+                      },
+                      amount: {
+                        type: "number",
+                        example: 73000,
+                      },
+                      code: {
+                        type: "string",
+                        example: "00",
+                        description: "Mã trạng thái giao dịch (00 là thành công)",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Xử lý webhook thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    message: {
+                      type: "string",
+                      example: "OK",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Payload không hợp lệ",
+          },
+          500: {
+            description: "Lỗi hệ thống",
           },
         },
       },
