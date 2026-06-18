@@ -139,20 +139,19 @@ class InvoiceService {
               },
               client,
             );
-
-            await client.query("COMMIT");
-
-            await deviceService.sendNotificationToUser(
-              updatedInvoice.member_id,
-              "Thanh toán thành công",
-              `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints} điểm.`,
-              {
-                invoice_id: updatedInvoice.id,
-                type: "payment_success",
-              },
-            );
           }
         }
+        await client.query("COMMIT");
+
+        await deviceService.sendNotificationToUser(
+          updatedInvoice.member_id,
+          "Thanh toán thành công",
+          `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints} điểm.`,
+          {
+            invoice_id: updatedInvoice.id,
+            type: "payment_success",
+          },
+        );
 
         return {
           type: "cash",
@@ -162,16 +161,15 @@ class InvoiceService {
       }
 
       if (paymentMethod.code === "payos") {
-        await client.query("COMMIT");
-
-        const paymentLink = await payOsService.createPaymentLink(invoice);
-
         await invoiceRepo.updatePaymentMethod(
           invoiceId,
           paymentMethod.code,
           paymentMethodId,
           client,
         );
+        await client.query("COMMIT");
+
+        const paymentLink = await payOsService.createPaymentLink(invoice);
 
         return {
           type: "payos",
@@ -206,15 +204,6 @@ class InvoiceService {
     };
   }
   async markAsPaidFromPayOS(invoiceId, amount) {
-    const invoice = await invoiceRepo.findById(invoiceId);
-    if (!invoice) {
-      throw new Error("Hóa đơn không tồn tại");
-    }
-
-    if (invoice.status === "COMPLETED") {
-      throw new Error("Hóa đơn đã được thanh toán");
-    }
-
     const payosMethod = await paymentMethodRepo.findByCode("payos");
     if (!payosMethod) {
       throw new Error("Phương thức thanh toán PayOS không tồn tại");
@@ -236,7 +225,9 @@ class InvoiceService {
     }
 
     if (invoice.status === "COMPLETED") {
-      throw new Error("Hóa đơn đã được thanh toán, không thể đánh dấu thất bại");
+      throw new Error(
+        "Hóa đơn đã được thanh toán, không thể đánh dấu thất bại",
+      );
     }
 
     const updatedInvoice = await invoiceRepo.markAsFailed(invoiceId);

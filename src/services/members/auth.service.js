@@ -29,7 +29,11 @@ class AuthService {
     let member = await memberRepository.findByPhone(phone);
 
     if (member) {
-      const accessToken = createAccessToken({ id: member.id, phone: member.phone_number, tier_id: member.tier_id });
+      const accessToken = createAccessToken({
+        id: member.id,
+        phone: member.phone_number,
+        tier_id: member.tier_id,
+      });
       const refreshToken = createRefreshToken({ id: member.id });
 
       const hashedToken = await memberRepository.hashRefreshToken(refreshToken);
@@ -39,7 +43,7 @@ class AuthService {
         tokenHash: hashedToken,
         deviceName: req?.body?.device_name || null,
         ipAddress: req?.ip,
-        userAgent: req?.headers['user-agent'],
+        userAgent: req?.headers["user-agent"],
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
@@ -84,7 +88,11 @@ class AuthService {
     }
   }
 
-  async completeRegistration(member_id, { full_name, email, date_of_birth }, req = null) {
+  async completeRegistration(
+    member_id,
+    { full_name, email, date_of_birth },
+    req = null,
+  ) {
     const updatedMember = await memberRepository.updateProfile(member_id, {
       full_name,
       email: email || null,
@@ -117,7 +125,7 @@ class AuthService {
       tokenHash: hashedToken,
       deviceName: req?.body?.device_name || null,
       ipAddress: req?.ip || null,
-      userAgent: req?.headers?.['user-agent'] || null,
+      userAgent: req?.headers?.["user-agent"] || null,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
     });
 
@@ -163,15 +171,16 @@ class AuthService {
     const newRefreshToken = createRefreshToken({ id: row.id });
 
     // 6. Hash và lưu vào bảng refresh_tokens
-    const newHashedToken = await memberRepository.hashRefreshToken(newRefreshToken);
+    const newHashedToken =
+      await memberRepository.hashRefreshToken(newRefreshToken);
 
     await memberRepository.createRefreshToken({
       memberId: row.id,
       tokenHash: newHashedToken,
-      deviceName: row.device_name,           // giữ lại thông tin thiết bị cũ
+      deviceName: row.device_name,
       ipAddress: row.ip_address,
       userAgent: row.user_agent,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 ngày
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     return {
@@ -191,7 +200,6 @@ class AuthService {
         await memberRepository.deleteRefreshTokenByHash(row.token_hash);
       }
     } else {
-      // Đăng xuất khỏi tất cả các thiết bị (xóa tất cả refresh token)
       await memberRepository.deleteAllRefreshTokensByMemberId(memberId);
     }
 

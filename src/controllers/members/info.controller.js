@@ -87,8 +87,10 @@ const updateProfileController = async (req, res) => {
 };
 const getMemberByPhone = async (req, res) => {
   try {
-    const { phone } = req.body;
-    console.log(phone)
+    const phone = req.query.phone;
+    if (!phone || typeof phone !== "string" || phone.trim().length < 9) {
+      return ApiResponse.error(res, "Số điện thoại không hợp lệ", 400);
+    }
 
     const member = await memberService.getMemberByPhone(phone);
 

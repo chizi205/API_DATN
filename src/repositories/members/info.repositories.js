@@ -178,6 +178,7 @@ class InfoRepository {
     SELECT 
       m.id,
       m.full_name,
+      m.current_points,
       t.tier_name AS tier_name,
       t.point_multiplier
     FROM members m

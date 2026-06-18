@@ -20,11 +20,5 @@ router.put(
   authenticate,
   updateProfileController,
 );
-router.get(
-  "/phone",
-  sendOtpValidation,
-  validate,
-  authenticateEmployee,
-  getMemberByPhone,
-);
+router.get("/phone", authenticateEmployee, getMemberByPhone);
 module.exports = router;
