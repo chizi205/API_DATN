@@ -7,7 +7,8 @@ const validate = require("../../middleware/validate");
 const authenticateEmployee = require("../../middleware/employeeAuth.middleware");
 const {
   createDraftInvoice,
-  checkoutInvoice
+  checkoutInvoice,
+  linkMemberToInvoice,
 } = require("../../controllers/invoices/invoice.controller");
 router.post(
   "/draft",
@@ -16,9 +17,10 @@ router.post(
   validate,
   createDraftInvoice,
 );
-router.post(
-  "/:id/checkout", 
-  authenticateEmployee, 
-  checkoutInvoice
+router.post("/:id/checkout", authenticateEmployee, checkoutInvoice);
+router.patch(
+  "/:invoiceId/link-member",
+  authenticateEmployee,
+  linkMemberToInvoice,
 );
 module.exports = router;

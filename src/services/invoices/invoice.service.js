@@ -16,6 +16,7 @@ class InvoiceService {
       const items = data.items.map((item) => {
         const itemTotal = item.quantity * item.unit_price;
         subTotal += itemTotal;
+
         return {
           invoice_id: null,
           product_id: item.product_id || null,
@@ -25,31 +26,10 @@ class InvoiceService {
         };
       });
 
-      let pointsMultiplier = data.points_multiplier || 1.0;
-
-      if (data.member_id) {
-        const memberTier = await infoRepository.getMemberPointsMultiplier(
-          data.member_id,
-          client,
-        );
-
-        if (memberTier) {
-          pointsMultiplier = memberTier.point_multiplier || 1.0;
-        }
-      }
-
-      const pointConfigs = await invoiceRepo.getActivePointConfig(client);
-      let pointsEarned = 0;
-
-      if (pointConfigs.length > 0) {
-        const config = pointConfigs[0];
-        pointsEarned =
-          Math.floor(subTotal / config.spend_amount) * config.earn_points;
-      }
-
       const finalAmount =
         subTotal + (data.tax_amount || 0) + (data.service_charge || 0);
 
+      // Tạo hóa đơn (chỉ tạo, chưa tính điểm)
       const invoiceData = {
         employee_id: data.employee_id,
         branch_id: data.branch_id,
@@ -59,8 +39,8 @@ class InvoiceService {
         discount_amount: 0,
         voucher_discount: 0,
         final_amount: finalAmount,
-        points_earned: pointsEarned,
-        points_multiplier: pointsMultiplier,
+        points_earned: 0, // Mặc định = 0
+        points_multiplier: 1.0, // Mặc định = 1.0
         status: "DRAFT",
         tax_amount: data.tax_amount || 0,
         service_charge: data.service_charge || 0,
@@ -68,6 +48,7 @@ class InvoiceService {
 
       const invoice = await invoiceRepo.create(invoiceData, client);
 
+      // Tạo chi tiết hóa đơn
       const detailsWithInvoiceId = items.map((item) => ({
         ...item,
         invoice_id: invoice.id,
@@ -114,9 +95,9 @@ class InvoiceService {
           paymentMethodId,
           client,
         );
-
+        let finalPoints;
         if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
-          const finalPoints = Math.floor(
+          finalPoints = Math.floor(
             updatedInvoice.points_earned *
               (updatedInvoice.points_multiplier || 1),
           );
@@ -141,17 +122,27 @@ class InvoiceService {
             );
           }
         }
+
         await client.query("COMMIT");
 
-        await deviceService.sendNotificationToUser(
-          updatedInvoice.member_id,
-          "Thanh toán thành công",
-          `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints} điểm.`,
-          {
-            invoice_id: updatedInvoice.id,
-            type: "payment_success",
-          },
-        );
+        if (updatedInvoice.member_id) {
+          try {
+            await deviceService.sendNotificationToUser(
+              updatedInvoice.member_id,
+              "Thanh toán thành công",
+              `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints || 0} điểm.`,
+              {
+                invoice_id: updatedInvoice.id,
+                type: "payment_success",
+              },
+            );
+          } catch (notiError) {
+            console.error(
+              "Gửi thông báo thất bại (không ảnh hưởng giao dịch):",
+              notiError,
+            );
+          }
+        }
 
         return {
           type: "cash",
@@ -232,6 +223,70 @@ class InvoiceService {
 
     const updatedInvoice = await invoiceRepo.markAsFailed(invoiceId);
     return updatedInvoice;
+  }
+  async linkMemberToInvoice(invoiceId, memberId) {
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const invoice = await invoiceRepo.findById(invoiceId, client);
+      if (!invoice) {
+        throw new Error("Hóa đơn không tồn tại");
+      }
+
+      if (invoice.status !== "DRAFT") {
+        throw new Error(
+          "Chỉ được gán thành viên cho hóa đơn ở trạng thái DRAFT",
+        );
+      }
+
+      if (invoice.member_id) {
+        throw new Error("Hóa đơn này đã có thành viên");
+      }
+
+      const memberTier = await infoRepository.getMemberPointsMultiplier(
+        memberId,
+        client,
+      );
+
+      const pointsMultiplier = memberTier?.point_multiplier || 1.0;
+
+      const pointConfigs = await invoiceRepo.getActivePointConfig(client);
+      let pointsEarned = 0;
+
+      if (pointConfigs.length > 0) {
+        const config = pointConfigs[0];
+        pointsEarned =
+          Math.floor(invoice.final_amount / config.spend_amount) *
+          config.earn_points;
+      }
+
+      const updatedInvoice = await invoiceRepo.updateMemberAndPoints(
+        invoiceId,
+        memberId,
+        pointsMultiplier,
+        pointsEarned,
+        client,
+      );
+
+      await client.query("COMMIT");
+
+      console.log(
+        `Đã gán member_id=${memberId} vào hóa đơn ${invoice.invoice_code}`,
+      );
+
+      return {
+        success: true,
+        message: "Gán thành viên vào hóa đơn thành công",
+        invoice: updatedInvoice,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

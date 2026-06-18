@@ -256,6 +256,35 @@ class InvoiceRepository {
     const { rows } = await db.query(query, [invoiceId]);
     return rows[0];
   }
+  async updateMemberAndPoints(
+    invoiceId,
+    memberId,
+    pointsMultiplier,
+    pointsEarned,
+    client = null,
+  ) {
+    const queryClient = client || pool;
+
+    const query = `
+    UPDATE invoices 
+    SET 
+      member_id = $1,
+      points_multiplier = $2,
+      points_earned = $3,
+      updated_at = NOW()
+    WHERE id = $4
+    RETURNING *;
+  `;
+
+    const result = await queryClient.query(query, [
+      memberId,
+      pointsMultiplier,
+      pointsEarned,
+      invoiceId,
+    ]);
+
+    return result.rows[0] || null;
+  }
 }
 
 module.exports = new InvoiceRepository();

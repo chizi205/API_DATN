@@ -1101,16 +1101,19 @@ const swaggerDocument = {
         summary: "Tìm thành viên theo số điện thoại",
         description: "Tìm kiếm thông tin thành viên (ID, họ tên, hạng thẻ, hệ số nhân điểm) dựa trên số điện thoại. Chỉ dành cho Nhân viên.",
         security: [{ BearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/SendOtpRequest",
-              },
+        parameters: [
+          {
+            name: "phone",
+            in: "query",
+            required: true,
+            description: "Số điện thoại của thành viên cần tìm",
+            schema: {
+              type: "string",
+              pattern: "^(0|\\+?84)(3|5|7|8|9)[0-9]{8}$",
+              example: "0987654321",
             },
           },
-        },
+        ],
         responses: {
           200: {
             description: "Tìm thành viên thành công",
@@ -1317,6 +1320,85 @@ const swaggerDocument = {
           },
           401: {
             description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+        },
+      },
+    },
+    "/api/invoice/{invoiceId}/link-member": {
+      patch: {
+        tags: ["Employee Invoices"],
+        summary: "Gán thành viên vào hóa đơn",
+        description: "Gán một thành viên vào hóa đơn đang ở trạng thái nháp (DRAFT) để tích điểm. Chỉ dành cho Nhân viên.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "invoiceId",
+            in: "path",
+            required: true,
+            description: "ID của hóa đơn cần gán thành viên",
+            schema: { type: "integer" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["member_id"],
+                properties: {
+                  member_id: {
+                    type: "integer",
+                    example: 12,
+                    description: "ID của thành viên cần gán",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Gán thành viên vào hóa đơn thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            success: { type: "boolean", example: true },
+                            message: { type: "string", example: "Gán thành viên vào hóa đơn thành công" },
+                            invoice: {
+                              type: "object",
+                              properties: {
+                                id: { type: "integer", example: 1 },
+                                member_id: { type: "integer", example: 12 },
+                                points_multiplier: { type: "number", example: 1.0 },
+                                points_earned: { type: "integer", example: 5 },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ (ví dụ: member_id bắt buộc, hóa đơn đã có thành viên hoặc không ở trạng thái DRAFT)",
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+          404: {
+            description: "Không tìm thấy hóa đơn",
           },
         },
       },

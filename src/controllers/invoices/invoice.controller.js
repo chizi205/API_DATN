@@ -84,6 +84,26 @@ class InvoiceController {
       return ApiResponse.error(res, error.message, 500);
     }
   }
+  async linkMemberToInvoice(req, res) {
+    try {
+      const { invoiceId } = req.params;
+      const { member_id } = req.body;
+
+      if (!member_id) {
+        return ApiResponse.error(res, "member_id là bắt buộc", 400);
+      }
+
+      const result = await invoiceService.linkMemberToInvoice(
+        invoiceId,
+        member_id,
+      );
+
+      return ApiResponse.success(res, result, result.message);
+    } catch (error) {
+      console.error("[Link Member To Invoice Error]", error);
+      return ApiResponse.error(res, error.message, 400);
+    }
+  }
 }
 
 module.exports = new InvoiceController();
