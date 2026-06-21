@@ -6,3 +6,5 @@ firebase-adminsdk-*.json
 *firebase*.json
 google*.json
 credentials.json
+*.rar
+node_modules/

@@ -104,6 +104,77 @@ class InvoiceController {
       return ApiResponse.error(res, error.message, 400);
     }
   }
+  async cancelDraft(req, res) {
+    try {
+      const { id } = req.params;
+
+      const result = await invoiceService.cancelDraftInvoice(id);
+
+      res.json({
+        success: true,
+        message: "Hủy hóa đơn thành công",
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  async getMyInvoicesToday(req, res, next) {
+    try {
+      const user = req.employee;
+
+      if (!user.id) {
+        return res.status(400).json({
+          success: false,
+          message: "Không tìm thấy thông tin nhân viên trong token",
+        });
+      }
+
+      // Dùng lại findAll với today + employee_id từ token
+      const filters = {
+        today: true,
+        employee_id: user.id,
+        branch_id: user.branch_id, // có thể bỏ nếu muốn xem tất cả chi nhánh
+        limit: req.query.limit || 20,
+        last_id: req.query.last_id ? parseInt(req.query.last_id) : null,
+        status: "COMPLETED",
+        sort_order: req.query.sort_order || "DESC",
+      };
+
+      const result = await invoiceService.getInvoices(filters);
+
+      res.status(200).json({
+        success: true,
+        message: "Lấy hóa đơn của bạn trong ngày thành công",
+        data: result.data,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  async findInvoiceById(req, res, next) {
+    try {
+      const { id } = req.params;
+      const user = req.employee;
+
+      const invoice = await invoiceService.findInvoiceDetail(id);
+
+      res.status(200).json({
+        success: true,
+        message: "Lấy chi tiết hóa đơn thành công",
+        data: invoice,
+      });
+    } catch (error) {
+      if (error.message === "Hóa đơn không tồn tại") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+      next(error);
+    }
+  }
 }
 
 module.exports = new InvoiceController();

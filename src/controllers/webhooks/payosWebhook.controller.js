@@ -17,12 +17,13 @@ class PayosWebhookController {
       }
 
       const orderCode = webhookPayload.data.orderCode;
+      const invoiceId = Math.floor(Number(orderCode) / 1000);
       const isPaid =
         webhookPayload.success && webhookPayload.data.code === "00";
 
-      const invoice = await invoiceService.getInvoiceById(orderCode);
+      const invoice = await invoiceService.getInvoiceById(invoiceId);
       if (!invoice) {
-        console.log(`Invoice ${orderCode} not found`);
+        console.log(`Invoice ${invoiceId} not found`);
         return res.status(200).json({ message: "OK - acknowledged" });
       }
 
@@ -39,7 +40,7 @@ class PayosWebhookController {
           await client.query("BEGIN");
 
           const updatedInvoice = await invoiceService.markAsPaidFromPayOS(
-            orderCode,
+            invoiceId,
             webhookPayload.data.amount,
             client,
           );
@@ -48,7 +49,7 @@ class PayosWebhookController {
           if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
             finalPoints = Math.floor(
               updatedInvoice.points_earned *
-                (updatedInvoice.points_multiplier || 1),
+              (updatedInvoice.points_multiplier || 1),
             );
 
             if (finalPoints > 0) {
@@ -98,7 +99,7 @@ class PayosWebhookController {
           }
 
           console.log(
-            `✅ Invoice ${orderCode} đã thanh toán thành công qua PayOS`,
+            `✅ Invoice ${invoiceId} đã thanh toán thành công qua PayOS`,
           );
         } catch (error) {
           await client.query("ROLLBACK");
@@ -107,14 +108,14 @@ class PayosWebhookController {
           client.release();
         }
       } else {
-        await invoiceService.markInvoiceAsFailed(orderCode);
+        await invoiceService.markInvoiceAsFailed(invoiceId);
 
-        io.to(`invoice_${orderCode}`).emit("PAYMENT_FAILED", {
-          invoice_id: orderCode,
+        io.to(`invoice_${invoiceId}`).emit("PAYMENT_FAILED", {
+          invoice_id: invoiceId,
           status: "FAILED",
         });
 
-        console.log(`❌ Invoice ${orderCode} thanh toán thất bại`);
+        console.log(`❌ Invoice ${invoiceId} thanh toán thất bại`);
       }
 
       return res.status(200).json({ message: "OK" });

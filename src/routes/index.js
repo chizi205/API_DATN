@@ -5,6 +5,7 @@ const router = express.Router();
 router.use("/member", require("./members/auth.routes"));
 router.use("/member", require("./members/info.routes"));
 router.use("/member", require("./members/device.routes"));
+router.use("/members", require("./members/claimPoints.routes"));
 
 //employee
 router.use("/employee", require("./employees/auth.routes"));
@@ -18,6 +19,9 @@ router.use("/paymentMethod", require("./paymentMethods/paymentMethod.routes"));
 
 //webhook
 router.use("/webhook", require("./webhooks/payos.routes"));
+router.use("/webhook", require("./webhooks/mio.routes"));
+//branches
+router.use("/branches", require("./branches/branches.routes"));
 
 
 module.exports = router;

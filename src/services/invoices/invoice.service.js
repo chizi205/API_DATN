@@ -5,6 +5,7 @@ const paymentMethodRepo = require("../../repositories/paymentMethods/paymentMeth
 const pointTransactionService = require("../../services/pointTransactions/pointTransaction.service");
 const deviceService = require("../../services/members/device.service");
 const payOsService = require("../external/payos.service");
+const miOService = require("../external/mio.service");
 class InvoiceService {
   async createDraftInvoice(data) {
     const client = await pool.connect();
@@ -125,7 +126,7 @@ class InvoiceService {
 
         await client.query("COMMIT");
 
-        if (updatedInvoice.member_id) {
+        if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
           try {
             await deviceService.sendNotificationToUser(
               updatedInvoice.member_id,
@@ -165,6 +166,31 @@ class InvoiceService {
         return {
           type: "payos",
           message: "Tạo link thanh toán PayOS thành công",
+          checkout_url: paymentLink.checkoutUrl,
+          qr_code: paymentLink.qrCode,
+          order_code: paymentLink.orderCode,
+          invoice_id: invoice.id,
+        };
+      }
+
+      if (paymentMethod.code === "mio") {
+        await invoiceRepo.updatePaymentMethod(
+          invoiceId,
+          paymentMethod.code,
+          paymentMethodId,
+          client,
+        );
+
+        await client.query("COMMIT");
+
+        const paymentLink = await miOService.createPaymentLink(
+          invoice,
+          paymentMethod,
+        );
+
+        return {
+          type: "mio",
+          message: "Tạo link thanh toán MiO thành công",
           checkout_url: paymentLink.checkoutUrl,
           qr_code: paymentLink.qrCode,
           order_code: paymentLink.orderCode,
@@ -287,6 +313,43 @@ class InvoiceService {
     } finally {
       client.release();
     }
+  }
+  async cancelDraftInvoice(invoiceId, cancelledBy, reason = null) {
+    const invoice = await invoiceRepo.findById(invoiceId);
+    if (!invoice) {
+      throw new AppError("Hóa đơn không tồn tại", 404);
+    }
+
+    if (invoice.status !== "DRAFT") {
+      throw new AppError(
+        `Không thể hủy hóa đơn ở trạng thái "${invoice.status}". Chỉ hủy được hóa đơn DRAFT.`,
+        400,
+      );
+    }
+
+    const cancelledInvoice = await invoiceRepo.cancelDraft(
+      invoiceId,
+      cancelledBy,
+      reason,
+    );
+
+    if (!cancelledInvoice) {
+      throw new AppError("Hủy hóa đơn thất bại", 500);
+    }
+
+    return cancelledInvoice;
+  }
+  async getInvoices(filters) {
+    return await invoiceRepo.findAll(filters);
+  }
+  async findInvoiceDetail(invoiceId) {
+    const invoice = await invoiceRepo.findDetailById(invoiceId);
+
+    if (!invoice) {
+      throw new Error("Hóa đơn không tồn tại");
+    }
+
+    return invoice;
   }
 }
 

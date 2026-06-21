@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 const {
   handleWebhook,
-} = require("../../controllers/webhooks/payosWebhook.controller");
+} = require("../../controllers/webhooks/mioWebhook.controller");
 
-router.post("/payos", handleWebhook);
+router.post("/mio", handleWebhook);
 
 
 

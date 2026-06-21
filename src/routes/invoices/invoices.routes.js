@@ -9,6 +9,9 @@ const {
   createDraftInvoice,
   checkoutInvoice,
   linkMemberToInvoice,
+  cancelDraft,
+  getMyInvoicesToday,
+  findInvoiceById,
 } = require("../../controllers/invoices/invoice.controller");
 router.post(
   "/draft",
@@ -23,4 +26,7 @@ router.patch(
   authenticateEmployee,
   linkMemberToInvoice,
 );
+router.post("/:id/cancel", authenticateEmployee, cancelDraft);
+router.get("/my/today", authenticateEmployee, getMyInvoicesToday);
+router.get("/:id", authenticateEmployee, findInvoiceById);
 module.exports = router;

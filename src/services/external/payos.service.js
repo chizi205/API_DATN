@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const invoiceService = require("../invoices/invoice.service");
 
 const createPaymentLink = async (invoice) => {
-  const orderCode = Number(invoice.id);
+  const orderCode = Number(invoice.id) * 1000 + (Date.now() % 1000);
   const amount = Math.round(Number(invoice.final_amount));
 
   if (isNaN(amount) || amount <= 0) {
@@ -55,6 +55,7 @@ const createPaymentLink = async (invoice) => {
     if (!res.data || res.data.code !== "00") {
       throw new Error(res.data?.desc || "Lỗi từ PayOS");
     }
+
 
     return res.data.data;
   } catch (err) {

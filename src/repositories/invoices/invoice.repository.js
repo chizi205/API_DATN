@@ -176,6 +176,19 @@ class InvoiceRepository {
 
   async markAsPaid(invoiceId, paymentMethod, paymentMethodId, client = null) {
     const db = client || pool;
+    const crypto = require("crypto");
+
+    const findQuery = `SELECT member_id FROM invoices WHERE id = $1`;
+    const { rows: findRows } = await db.query(findQuery, [invoiceId]);
+    const memberId = findRows[0]?.member_id;
+
+    let claimQrToken = null;
+    let claimQrExpiredAt = null;
+
+    if (memberId === null || memberId === undefined) {
+      claimQrToken = crypto.randomUUID();
+      claimQrExpiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
 
     const query = `
       UPDATE invoices 
@@ -183,9 +196,11 @@ class InvoiceRepository {
         status = 'COMPLETED',
         payment_method_id = $1,
         payment_method = $2,
+        claim_qr_token = $3,
+        claim_qr_expired_at = $4,
         paid_at = NOW(),
         updated_at = NOW()
-      WHERE id = $3 
+      WHERE id = $5 
       RETURNING 
         id, 
         invoice_code, 
@@ -196,12 +211,16 @@ class InvoiceRepository {
         member_id,
         points_earned,
         points_multiplier,
-        applied_member_voucher_id;
+        applied_member_voucher_id,
+        claim_qr_token,
+        claim_qr_expired_at;
     `;
 
     const { rows } = await db.query(query, [
       paymentMethodId,
       paymentMethod,
+      claimQrToken,
+      claimQrExpiredAt,
       invoiceId,
     ]);
     return rows[0];
@@ -284,6 +303,167 @@ class InvoiceRepository {
     ]);
 
     return result.rows[0] || null;
+  }
+
+  async findAll(filters = {}, client = null) {
+    const db = client || pool;
+
+    const {
+      limit = 20,
+      last_id,
+      status,
+      branch_id,
+      member_id,
+      employee_id,
+      from_date,
+      to_date,
+      today,
+      search,
+      sort_order = "DESC",
+    } = filters;
+
+    const safeLimit = Math.min(parseInt(limit) || 20, 100);
+
+    let whereConditions = [];
+    let values = [];
+    let paramIndex = 1;
+
+    // ==================== FILTER CƠ BẢN ====================
+    if (status) {
+      whereConditions.push(`i.status = $${paramIndex++}`);
+      values.push(status);
+    }
+    if (branch_id) {
+      whereConditions.push(`i.branch_id = $${paramIndex++}`);
+      values.push(branch_id);
+    }
+    if (member_id) {
+      whereConditions.push(`i.member_id = $${paramIndex++}`);
+      values.push(member_id);
+    }
+    if (employee_id) {
+      whereConditions.push(`i.employee_id = $${paramIndex++}`);
+      values.push(employee_id);
+    }
+
+    // ==================== LỌC THEO NGÀY ====================
+    if (today === true || today === "true") {
+      // Lấy hóa đơn trong ngày hôm nay (theo giờ Việt Nam)
+      whereConditions.push(
+        `DATE(i.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh') = CURRENT_DATE`,
+      );
+    } else {
+      if (from_date) {
+        whereConditions.push(`i.created_at >= $${paramIndex++}`);
+        values.push(from_date);
+      }
+      if (to_date) {
+        whereConditions.push(`i.created_at <= $${paramIndex++}`);
+        values.push(to_date + " 23:59:59");
+      }
+    }
+
+    if (search) {
+      whereConditions.push(
+        `(i.invoice_code ILIKE $${paramIndex} OR m.phone ILIKE $${paramIndex})`,
+      );
+      values.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // ==================== KEYSET PAGINATION ====================
+    if (last_id) {
+      if (sort_order.toUpperCase() === "DESC") {
+        whereConditions.push(`i.id < $${paramIndex++}`);
+      } else {
+        whereConditions.push(`i.id > $${paramIndex++}`);
+      }
+      values.push(last_id);
+    }
+
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
+
+    // ==================== QUERY ====================
+    const query = `
+    SELECT 
+      i.id,
+      i.invoice_code,
+      i.status,
+      i.final_amount,
+      i.points_earned,
+      i.created_at,
+      i.paid_at,
+      b.name AS branch_name,
+      e.full_name AS employee_name,
+      m.full_name AS member_name,
+      m.phone_number AS member_phone,
+      pm.name AS payment_method_name  
+    FROM invoices i
+    LEFT JOIN branches b ON i.branch_id = b.id
+    LEFT JOIN employees e ON i.employee_id = e.id
+    LEFT JOIN members m ON i.member_id = m.id
+    LEFT JOIN payment_methods pm ON i.payment_method_id = pm.id
+    ${whereClause}
+    ORDER BY i.id ${sort_order}
+    LIMIT $${paramIndex}
+  `;
+
+    values.push(safeLimit);
+
+    const { rows } = await db.query(query, values);
+
+    const hasMore = rows.length === safeLimit;
+    const nextLastId = hasMore ? rows[rows.length - 1].id : null;
+
+    return {
+      data: rows,
+      pagination: {
+        limit: safeLimit,
+        has_more: hasMore,
+        last_id: nextLastId,
+        sort_order,
+      },
+    };
+  }
+  async findDetailById(id, client = null) {
+    const db = client || pool;
+
+    // Lấy thông tin hóa đơn + join các bảng liên quan
+    const invoiceQuery = `
+    SELECT 
+      i.*,
+      b.name AS branch_name,
+      e.full_name AS employee_name,
+      m.id AS member_id,
+      m.full_name AS member_name,
+      m.phone_number AS member_phone,
+
+      pm.name AS payment_method_name,
+      pm.code AS payment_method_code,
+      v.code AS voucher_code
+    FROM invoices i
+    LEFT JOIN branches b ON i.branch_id = b.id
+    LEFT JOIN employees e ON i.employee_id = e.id
+    LEFT JOIN members m ON i.member_id = m.id
+    LEFT JOIN payment_methods pm ON i.payment_method_id = pm.id
+    LEFT JOIN vouchers v ON i.applied_member_voucher_id = v.id
+    WHERE i.id = $1
+  `;
+
+    const { rows: invoiceRows } = await db.query(invoiceQuery, [id]);
+    const invoice = invoiceRows[0];
+
+    if (!invoice) return null;
+
+    const details = await this.getInvoiceDetails(id, client);
+
+    return {
+      ...invoice,
+      details,
+    };
   }
 }
 
