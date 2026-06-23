@@ -190,6 +190,18 @@ class VoucherRepository {
     const { rows } = await pool.query(query, params);
     return rows;
   }
+
+  async getMemberVoucherByCode(voucherCode, client = null) {
+    const db = client || pool;
+    const query = `
+      SELECT mv.*, v.discount_type, v.discount_value, v.max_discount, v.code AS base_code
+      FROM member_vouchers mv
+      LEFT JOIN vouchers v ON mv.voucher_id = v.id
+      WHERE mv.voucher_code = $1;
+    `;
+    const { rows } = await db.query(query, [voucherCode]);
+    return rows[0] || null;
+  }
 }
 
 module.exports = new VoucherRepository();

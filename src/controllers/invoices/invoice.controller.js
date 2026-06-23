@@ -175,6 +175,54 @@ class InvoiceController {
       next(error);
     }
   }
+
+  async applyVoucher(req, res) {
+    try {
+      const { invoiceId } = req.params;
+      const { voucher_code } = req.body;
+
+      if (!voucher_code) {
+        return ApiResponse.error(res, "voucher_code là bắt buộc", 400);
+      }
+
+      const invoice = await invoiceService.applyVoucherToInvoice(
+        invoiceId,
+        voucher_code,
+      );
+
+      return ApiResponse.success(
+        res,
+        invoice,
+        "Áp dụng voucher vào hóa đơn thành công",
+      );
+    } catch (error) {
+      console.error("[Apply Voucher Controller Error]", error);
+
+      if (error.message === "INVOICE_NOT_FOUND") {
+        return ApiResponse.notFound(res, "Không tìm thấy hóa đơn");
+      }
+      if (error.message === "INVOICE_NOT_DRAFT") {
+        return ApiResponse.badRequest(res, "Chỉ có thể áp dụng voucher cho hóa đơn nháp (DRAFT)");
+      }
+      if (error.message === "INVOICE_MEMBER_NOT_LINKED") {
+        return ApiResponse.badRequest(res, "Hóa đơn phải được gán thành viên trước khi áp dụng voucher");
+      }
+      if (error.message === "VOUCHER_NOT_FOUND") {
+        return ApiResponse.notFound(res, "Không tìm thấy thông tin voucher");
+      }
+      if (error.message === "VOUCHER_ALREADY_USED_OR_EXPIRED") {
+        return ApiResponse.badRequest(res, "Voucher này đã được sử dụng hoặc đã hết hạn");
+      }
+      if (error.message === "VOUCHER_DOES_NOT_BELONG_TO_MEMBER") {
+        return ApiResponse.badRequest(res, "Voucher này không thuộc sở hữu của thành viên trong hóa đơn");
+      }
+      if (error.message === "VOUCHER_EXPIRED") {
+        return ApiResponse.badRequest(res, "Voucher này đã hết hạn sử dụng");
+      }
+
+      return ApiResponse.error(res, error.message, 400);
+    }
+  }
 }
 
 module.exports = new InvoiceController();

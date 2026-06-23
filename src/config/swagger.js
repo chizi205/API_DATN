@@ -1605,6 +1605,85 @@ const swaggerDocument = {
         },
       },
     },
+    "/api/invoice/{invoiceId}/apply-voucher": {
+      patch: {
+        tags: ["Employee Invoices"],
+        summary: "Áp dụng voucher vào hóa đơn",
+        description: "Áp dụng mã voucher sở hữu của thành viên vào hóa đơn đang ở trạng thái DRAFT. Hệ thống sẽ tự động tính toán lại tiền giảm giá của voucher, giá trị cuối cùng và số điểm tích lũy dự kiến của hóa đơn. Chỉ dành cho Nhân viên.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "invoiceId",
+            in: "path",
+            required: true,
+            description: "ID của hóa đơn cần áp dụng voucher",
+            schema: { type: "integer" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["voucher_code"],
+                properties: {
+                  voucher_code: {
+                    type: "string",
+                    example: "GIAM30K-A1B2C3D4",
+                    description: "Mã code của voucher sở hữu muốn áp dụng (định dạng CODE-RANDOM)",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Áp dụng voucher thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            invoice_code: { type: "string", example: "INV-20260623-000001" },
+                            member_id: { type: "integer", example: 12 },
+                            sub_total: { type: "number", example: 100000 },
+                            voucher_discount: { type: "number", example: 30000 },
+                            discount_amount: { type: "number", example: 0 },
+                            tax_amount: { type: "number", example: 0 },
+                            service_charge: { type: "number", example: 0 },
+                            final_amount: { type: "number", example: 70000 },
+                            points_earned: { type: "integer", example: 3 },
+                            applied_member_voucher_id: { type: "integer", example: 5 },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ (ví dụ: hóa đơn không ở trạng thái DRAFT, chưa gán thành viên, voucher hết hạn, đã dùng hoặc không thuộc về thành viên này)",
+          },
+          401: {
+            description: "Chưa xác thực hoặc không có quyền nhân viên",
+          },
+          404: {
+            description: "Không tìm thấy hóa đơn hoặc voucher",
+          },
+        },
+      },
+    },
     "/api/webhook/payos": {
       post: {
         tags: ["Webhooks"],

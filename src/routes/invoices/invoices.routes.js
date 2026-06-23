@@ -12,6 +12,7 @@ const {
   cancelDraft,
   getMyInvoicesToday,
   findInvoiceById,
+  applyVoucher,
 } = require("../../controllers/invoices/invoice.controller");
 router.post(
   "/draft",
@@ -25,6 +26,11 @@ router.patch(
   "/:invoiceId/link-member",
   authenticateEmployee,
   linkMemberToInvoice,
+);
+router.patch(
+  "/:invoiceId/apply-voucher",
+  authenticateEmployee,
+  applyVoucher,
 );
 router.post("/:id/cancel", authenticateEmployee, cancelDraft);
 router.get("/my/today", authenticateEmployee, getMyInvoicesToday);

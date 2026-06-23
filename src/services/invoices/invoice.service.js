@@ -6,6 +6,7 @@ const pointTransactionService = require("../../services/pointTransactions/pointT
 const deviceService = require("../../services/members/device.service");
 const payOsService = require("../external/payos.service");
 const miOService = require("../external/mio.service");
+const voucherRepository = require("../../repositories/members/voucher.repository");
 class InvoiceService {
   async createDraftInvoice(data) {
     const client = await pool.connect();
@@ -350,6 +351,93 @@ class InvoiceService {
     }
 
     return invoice;
+  }
+
+  async applyVoucherToInvoice(invoiceId, voucherCode) {
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      // 1. Fetch invoice
+      const invoice = await invoiceRepo.findById(invoiceId, client);
+      if (!invoice) {
+        throw new Error("INVOICE_NOT_FOUND");
+      }
+
+      if (invoice.status !== "DRAFT") {
+        throw new Error("INVOICE_NOT_DRAFT");
+      }
+
+
+      // 2. Fetch member voucher
+      const memberVoucher = await voucherRepository.getMemberVoucherByCode(voucherCode, client);
+      if (!memberVoucher) {
+        throw new Error("VOUCHER_NOT_FOUND");
+      }
+
+      if (memberVoucher.status !== "AVAILABLE") {
+        throw new Error("VOUCHER_ALREADY_USED_OR_EXPIRED");
+      }
+
+
+      // Check expiry date
+      const today = new Date().toISOString().slice(0, 10);
+      const expiryDateStr = new Date(memberVoucher.expiry_date).toISOString().slice(0, 10);
+      if (expiryDateStr < today) {
+        throw new Error("VOUCHER_EXPIRED");
+      }
+
+      // 3. Calculate discount
+      const subTotal = Number(invoice.sub_total);
+      let voucherDiscount = 0;
+
+      if (memberVoucher.discount_type === "FIXED") {
+        voucherDiscount = Math.min(Number(memberVoucher.discount_value), subTotal);
+      } else if (memberVoucher.discount_type === "PERCENT") {
+        let pctDiscount = (subTotal * Number(memberVoucher.discount_value)) / 100;
+        if (memberVoucher.max_discount) {
+          pctDiscount = Math.min(pctDiscount, Number(memberVoucher.max_discount));
+        }
+        voucherDiscount = Math.min(pctDiscount, subTotal);
+      }
+
+      // 4. Recalculate final_amount
+      const discountAmount = Number(invoice.discount_amount || 0);
+      const taxAmount = Number(invoice.tax_amount || 0);
+      const serviceCharge = Number(invoice.service_charge || 0);
+
+      const finalAmount = Math.max(0, subTotal - discountAmount - voucherDiscount + taxAmount + serviceCharge);
+
+      // 5. Recalculate points earned
+      const pointConfigs = await invoiceRepo.getActivePointConfig(client);
+      let pointsEarned = 0;
+
+      if (pointConfigs.length > 0) {
+        const config = pointConfigs[0];
+        pointsEarned = Math.floor(finalAmount / Number(config.spend_amount)) * Number(config.earn_points);
+      }
+
+      // 6. Update database
+      const updatedInvoice = await invoiceRepo.applyVoucherToInvoice(
+        invoiceId,
+        memberVoucher.id,
+        voucherDiscount,
+        finalAmount,
+        pointsEarned,
+        client
+      );
+
+      await client.query("COMMIT");
+
+      return updatedInvoice;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

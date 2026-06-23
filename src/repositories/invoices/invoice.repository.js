@@ -178,9 +178,10 @@ class InvoiceRepository {
     const db = client || pool;
     const crypto = require("crypto");
 
-    const findQuery = `SELECT member_id FROM invoices WHERE id = $1`;
+    const findQuery = `SELECT member_id, applied_member_voucher_id FROM invoices WHERE id = $1`;
     const { rows: findRows } = await db.query(findQuery, [invoiceId]);
     const memberId = findRows[0]?.member_id;
+    const appliedMemberVoucherId = findRows[0]?.applied_member_voucher_id;
 
     let claimQrToken = null;
     let claimQrExpiredAt = null;
@@ -223,6 +224,14 @@ class InvoiceRepository {
       claimQrExpiredAt,
       invoiceId,
     ]);
+
+    if (appliedMemberVoucherId) {
+      await db.query(
+        `UPDATE member_vouchers SET status = 'USED', used_at = NOW(), used_invoice_id = $1 WHERE id = $2`,
+        [invoiceId, appliedMemberVoucherId]
+      );
+    }
+
     return rows[0];
   }
   async updatePaymentMethod(
@@ -464,6 +473,29 @@ class InvoiceRepository {
       ...invoice,
       details,
     };
+  }
+
+  async applyVoucherToInvoice(invoiceId, memberVoucherId, voucherDiscount, finalAmount, pointsEarned, client = null) {
+    const db = client || pool;
+    const query = `
+      UPDATE invoices
+      SET 
+        applied_member_voucher_id = $1,
+        voucher_discount = $2,
+        final_amount = $3,
+        points_earned = $4,
+        updated_at = NOW()
+      WHERE id = $5
+      RETURNING *;
+    `;
+    const { rows } = await db.query(query, [
+      memberVoucherId,
+      voucherDiscount,
+      finalAmount,
+      pointsEarned,
+      invoiceId
+    ]);
+    return rows[0] || null;
   }
 }
 
