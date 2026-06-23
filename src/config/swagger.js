@@ -30,6 +30,10 @@ const swaggerDocument = {
       description: "Các API liên quan đến thiết bị và thông báo FCM",
     },
     {
+      name: "Member Vouchers",
+      description: "Các API quản lý, tra cứu và đổi voucher dành cho Thành viên",
+    },
+    {
       name: "Employee Auth",
       description: "Các API xác thực và tài khoản cho Nhân viên (Employee)",
     },
@@ -697,6 +701,204 @@ const swaggerDocument = {
           },
         },
       },
+    },
+    "/api/member/vouchers/redeemable": {
+      get: {
+        tags: ["Member Vouchers"],
+        summary: "Lấy danh sách các voucher thành viên có thể đổi",
+        description: "Lấy danh sách các voucher đang hoạt động kèm theo thông tin chi tiết về việc thành viên có đủ điều kiện đổi hay không, bao gồm điều kiện về điểm và về hạng thành viên.",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "string", example: "4" },
+                              code: { type: "string", example: "FREEBANH" },
+                              title: { type: "string", example: "Tặng 1 bánh ngọt" },
+                              discount_type: { type: "string", example: "FIXED" },
+                              discount_value: { type: "number", example: 35000 },
+                              max_discount: { type: "number", example: null },
+                              point_cost: { type: "integer", example: 120 },
+                              stock_quantity: { type: "integer", example: 400 },
+                              applicable_tiers: {
+                                type: "array",
+                                items: { type: "integer" },
+                                example: [1, 2, 3]
+                              },
+                              valid_from: { type: "string", format: "date-time", example: "2026-05-31T17:00:00.000Z" },
+                              valid_to: { type: "string", format: "date-time", example: "2026-12-30T17:00:00.000Z" },
+                              expiry_days: { type: "integer", example: 30 },
+                              is_tier_eligible: { type: "boolean", example: true },
+                              has_enough_points: { type: "boolean", example: false },
+                              can_redeem: { type: "boolean", example: false },
+                              required_tier: {
+                                type: "object",
+                                nullable: true,
+                                properties: {
+                                  id: { type: "string", example: "2" },
+                                  tier_name: { type: "string", example: "Silver" },
+                                  min_points: { type: "integer", example: 1000 },
+                                  color_code: { type: "string", example: "#C0C0C0" }
+                                }
+                              },
+                              points_needed_to_upgrade: { type: "integer", example: 0 },
+                              points_needed_to_redeem: { type: "integer", example: 57 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
+    },
+    "/api/member/vouchers/redeem": {
+      post: {
+        tags: ["Member Vouchers"],
+        summary: "Đổi điểm lấy voucher",
+        description: "Thành viên sử dụng điểm tích luỹ hiện tại để đổi lấy voucher mong muốn.",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["voucher_id"],
+                properties: {
+                  voucher_id: {
+                    type: "integer",
+                    example: 4,
+                    description: "ID của voucher cần đổi"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Đổi voucher thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            member_voucher_id: { type: "string", example: "1" },
+                            voucher_code: { type: "string", example: "FREEBANH-9F3B1A2C" },
+                            expiry_date: { type: "string", format: "date", example: "2026-07-22" },
+                            points_spent: { type: "integer", example: 120 },
+                            remaining_points: { type: "integer", example: 63 },
+                            status: { type: "string", example: "AVAILABLE" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ (ví dụ: không đủ điểm, không đủ hạng, hết số lượng, hoặc voucher không hoạt động)"
+          },
+          401: {
+            description: "Chưa xác thực"
+          },
+          404: {
+            description: "Không tìm thấy voucher hoặc thành viên"
+          }
+        }
+      }
+    },
+    "/api/member/vouchers": {
+      get: {
+        tags: ["Member Vouchers"],
+        summary: "Lấy danh sách voucher thành viên đang sở hữu",
+        description: "Lấy toàn bộ danh sách các voucher đã đổi của thành viên hiện tại có hỗ trợ lọc theo trạng thái (AVAILABLE, USED, EXPIRED).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "status",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái của voucher sở hữu",
+            schema: {
+              type: "string",
+              enum: ["AVAILABLE", "USED", "EXPIRED"],
+              example: "AVAILABLE"
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              member_voucher_id: { type: "string", example: "1" },
+                              voucher_code: { type: "string", example: "FREEBANH-9F3B1A2C" },
+                              status: { type: "string", example: "AVAILABLE" },
+                              points_spent: { type: "integer", example: 120 },
+                              acquired_at: { type: "string", format: "date-time", example: "2026-06-22T08:31:19.000Z" },
+                              expiry_date: { type: "string", format: "date-time", example: "2026-07-22T17:00:00.000Z" },
+                              used_at: { type: "string", format: "date-time", example: null, nullable: true },
+                              used_invoice_id: { type: "string", example: null, nullable: true },
+                              voucher_id: { type: "string", example: "4" },
+                              title: { type: "string", example: "Tặng 1 bánh ngọt" },
+                              discount_type: { type: "string", example: "FIXED" },
+                              discount_value: { type: "number", example: 35000 },
+                              max_discount: { type: "number", example: null, nullable: true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
     },
     "/api/employee/login": {
       post: {

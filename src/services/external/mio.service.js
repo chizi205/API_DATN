@@ -21,9 +21,7 @@ const createPaymentLink = async (invoice, paymentMethod) => {
       amount: amount,
       description: `Thanh toán hóa đơn ${invoice.invoice_code}`,
       merchant_order_id: orderCode,
-      callback_url:
-        process.env.PAYMENT_CALLBACK_URL ||
-        "http://127.0.0.1:3001/api/v1/webhook/payment",
+   
     };
 
     const response = await axios.post(config.api_url, payload, {
@@ -33,13 +31,7 @@ const createPaymentLink = async (invoice, paymentMethod) => {
       },
       timeout: 15000,
     });
-    console.log(response.data)
-    return {
-      success: true,
-      payment_method: "mio",
-      message: "Tạo thanh toán Mio thành công",
-      data: response.data,
-    };
+    return response.data.data;
   } catch (error) {
     console.error("Mió Payment Error:", error.response?.data || error.message);
 

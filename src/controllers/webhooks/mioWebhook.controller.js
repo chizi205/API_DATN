@@ -9,7 +9,11 @@ const pool = require("../../config/database");
 class mioWebhookController {
   async handleWebhook(req, res) {
     const webhookPayload = req.body;
-    console.log(webhookPayload);
+    console.log("Nhận Webhook từ ví MiO:", webhookPayload);
+    return res.status(200).json({
+      success: true,
+      message: "Webhook received successfully"
+    });
   }
 }
 

@@ -34,7 +34,7 @@ class InvoiceService {
       const invoiceData = {
         employee_id: data.employee_id,
         branch_id: data.branch_id,
-        member_id: data.member_id || null,
+        member_id: null,
         table_number: data.table_number || null,
         sub_total: subTotal,
         discount_amount: 0,
@@ -100,7 +100,7 @@ class InvoiceService {
         if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
           finalPoints = Math.floor(
             updatedInvoice.points_earned *
-              (updatedInvoice.points_multiplier || 1),
+            (updatedInvoice.points_multiplier || 1),
           );
 
           if (finalPoints > 0) {

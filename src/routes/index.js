@@ -5,6 +5,7 @@ const router = express.Router();
 router.use("/member", require("./members/auth.routes"));
 router.use("/member", require("./members/info.routes"));
 router.use("/member", require("./members/device.routes"));
+router.use("/member", require("./members/voucher.routes"));
 router.use("/members", require("./members/claimPoints.routes"));
 
 //employee
