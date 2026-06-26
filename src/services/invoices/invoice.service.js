@@ -101,7 +101,7 @@ class InvoiceService {
         if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
           finalPoints = Math.floor(
             updatedInvoice.points_earned *
-            (updatedInvoice.points_multiplier || 1),
+              (updatedInvoice.points_multiplier || 1),
           );
 
           if (finalPoints > 0) {
@@ -221,8 +221,8 @@ class InvoiceService {
       items: items || [],
     };
   }
-  async markAsPaidFromPayOS(invoiceId, amount) {
-    const payosMethod = await paymentMethodRepo.findByCode("payos");
+  async markAsPaidFromPayOS(invoiceId, amount, client = null) {
+    const payosMethod = await paymentMethodRepo.findByCode("payos", client);
     if (!payosMethod) {
       throw new Error("Phương thức thanh toán PayOS không tồn tại");
     }
@@ -231,6 +231,23 @@ class InvoiceService {
       invoiceId,
       payosMethod.code,
       payosMethod.id,
+      client,
+    );
+
+    return updatedInvoice;
+  }
+
+  async markAsPaidFromMio(invoiceId, amount, client = null) {
+    const mioMethod = await paymentMethodRepo.findByCode("mio", client);
+    if (!mioMethod) {
+      throw new Error("Phương thức thanh toán MIO không tồn tại");
+    }
+
+    const updatedInvoice = await invoiceRepo.markAsPaid(
+      invoiceId,
+      mioMethod.code,
+      mioMethod.id,
+      client,
     );
 
     return updatedInvoice;
@@ -354,7 +371,6 @@ class InvoiceService {
   }
 
   async applyVoucherToInvoice(invoiceId, voucherCode) {
-
     const client = await pool.connect();
 
     try {
@@ -370,9 +386,11 @@ class InvoiceService {
         throw new Error("INVOICE_NOT_DRAFT");
       }
 
-
       // 2. Fetch member voucher
-      const memberVoucher = await voucherRepository.getMemberVoucherByCode(voucherCode, client);
+      const memberVoucher = await voucherRepository.getMemberVoucherByCode(
+        voucherCode,
+        client,
+      );
       if (!memberVoucher) {
         throw new Error("VOUCHER_NOT_FOUND");
       }
@@ -381,10 +399,11 @@ class InvoiceService {
         throw new Error("VOUCHER_ALREADY_USED_OR_EXPIRED");
       }
 
-
       // Check expiry date
       const today = new Date().toISOString().slice(0, 10);
-      const expiryDateStr = new Date(memberVoucher.expiry_date).toISOString().slice(0, 10);
+      const expiryDateStr = new Date(memberVoucher.expiry_date)
+        .toISOString()
+        .slice(0, 10);
       if (expiryDateStr < today) {
         throw new Error("VOUCHER_EXPIRED");
       }
@@ -394,11 +413,18 @@ class InvoiceService {
       let voucherDiscount = 0;
 
       if (memberVoucher.discount_type === "FIXED") {
-        voucherDiscount = Math.min(Number(memberVoucher.discount_value), subTotal);
+        voucherDiscount = Math.min(
+          Number(memberVoucher.discount_value),
+          subTotal,
+        );
       } else if (memberVoucher.discount_type === "PERCENT") {
-        let pctDiscount = (subTotal * Number(memberVoucher.discount_value)) / 100;
+        let pctDiscount =
+          (subTotal * Number(memberVoucher.discount_value)) / 100;
         if (memberVoucher.max_discount) {
-          pctDiscount = Math.min(pctDiscount, Number(memberVoucher.max_discount));
+          pctDiscount = Math.min(
+            pctDiscount,
+            Number(memberVoucher.max_discount),
+          );
         }
         voucherDiscount = Math.min(pctDiscount, subTotal);
       }
@@ -408,7 +434,10 @@ class InvoiceService {
       const taxAmount = Number(invoice.tax_amount || 0);
       const serviceCharge = Number(invoice.service_charge || 0);
 
-      const finalAmount = Math.max(0, subTotal - discountAmount - voucherDiscount + taxAmount + serviceCharge);
+      const finalAmount = Math.max(
+        0,
+        subTotal - discountAmount - voucherDiscount + taxAmount + serviceCharge,
+      );
 
       // 5. Recalculate points earned
       const pointConfigs = await invoiceRepo.getActivePointConfig(client);
@@ -416,7 +445,9 @@ class InvoiceService {
 
       if (pointConfigs.length > 0) {
         const config = pointConfigs[0];
-        pointsEarned = Math.floor(finalAmount / Number(config.spend_amount)) * Number(config.earn_points);
+        pointsEarned =
+          Math.floor(finalAmount / Number(config.spend_amount)) *
+          Number(config.earn_points);
       }
 
       // 6. Update database
@@ -426,7 +457,7 @@ class InvoiceService {
         voucherDiscount,
         finalAmount,
         pointsEarned,
-        client
+        client,
       );
 
       await client.query("COMMIT");

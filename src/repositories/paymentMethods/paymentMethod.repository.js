@@ -33,9 +33,7 @@ class PaymentMethodRepository {
     return rows;
   }
 
-  /**
-   * Lấy 1 phương thức thanh toán theo ID
-   */
+
   async findById(id, client = null) {
     const db = client || pool;
 

@@ -84,19 +84,22 @@ class PayosWebhookController {
             paid_at: new Date(),
           });
 
-          try {
-            await deviceService.sendNotificationToUser(
-              updatedInvoice.member_id,
-              "Thanh toán thành công",
-              `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints} điểm.`,
-              {
-                invoice_id: updatedInvoice.id,
-                type: "payment_success",
-              },
-            );
-          } catch (notiError) {
-            console.error("Gửi thông báo thất bại:", notiError);
-          }
+           if (updatedInvoice.member_id && updatedInvoice.points_earned > 0){
+             try {
+               await deviceService.sendNotificationToUser(
+                 updatedInvoice.member_id,
+                 "Thanh toán thành công",
+                 `Hóa đơn ${updatedInvoice.invoice_code} đã được thanh toán, bạn được cộng ${finalPoints} điểm.`,
+                 {
+                   invoice_id: updatedInvoice.id,
+                   type: "payment_success",
+                 },
+               );
+             } catch (notiError) {
+               console.error("Gửi thông báo thất bại:", notiError);
+             }
+           }
+
 
           console.log(
             `✅ Invoice ${invoiceId} đã thanh toán thành công qua PayOS`,
