@@ -215,6 +215,63 @@ class InfoRepository {
     const { rows } = await db.query(query, [pointsToAdd, memberId]);
     return rows[0];
   }
+
+  async getMemberInvoices(memberId, limit = 20, offset = 0) {
+    const query = `
+      SELECT 
+        i.id,
+        i.invoice_code,
+        i.sub_total,
+        i.discount_amount,
+        i.voucher_discount,
+        i.final_amount,
+        i.points_earned,
+        i.status,
+        i.payment_method,
+        i.table_number,
+        i.created_at,
+        i.paid_at,
+        b.name AS branch_name
+      FROM invoices i
+      LEFT JOIN branches b ON i.branch_id = b.id
+      WHERE i.member_id = $1
+      ORDER BY i.created_at DESC
+      LIMIT $2 OFFSET $3;
+    `;
+    const { rows } = await pool.query(query, [memberId, limit, offset]);
+    return rows;
+  }
+
+  async getInvoiceDetailsByInvoiceIds(invoiceIds) {
+    if (!invoiceIds || invoiceIds.length === 0) return [];
+    const query = `
+      SELECT * FROM invoice_details
+      WHERE invoice_id = ANY($1)
+      ORDER BY id ASC;
+    `;
+    const { rows } = await pool.query(query, [invoiceIds]);
+    return rows;
+  }
+
+  async getMemberPointTransactions(memberId, limit = 20, offset = 0) {
+    const query = `
+      SELECT 
+        id,
+        transaction_type,
+        points,
+        multiplier_applied,
+        reference_type,
+        reference_id,
+        description,
+        created_at
+      FROM point_transactions
+      WHERE member_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3;
+    `;
+    const { rows } = await pool.query(query, [memberId, limit, offset]);
+    return rows;
+  }
 }
 
 module.exports = new InfoRepository();

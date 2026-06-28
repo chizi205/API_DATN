@@ -101,9 +101,39 @@ const getMemberByPhone = async (req, res) => {
     return ApiResponse.error(res, error.message, statusCode);
   }
 };
+const getInvoicesHistoryController = async (req, res) => {
+  try {
+    const memberId = req.user.id;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const invoices = await memberService.getInvoicesHistory(memberId, limit, offset);
+    return ApiResponse.success(res, invoices, "Lấy lịch sử hóa đơn thành công");
+  } catch (error) {
+    console.error("Get Invoices History Error:", error);
+    return ApiResponse.serverError(res, "Lỗi server khi lấy lịch sử hóa đơn");
+  }
+};
+
+const getPointHistoryController = async (req, res) => {
+  try {
+    const memberId = req.user.id;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const history = await memberService.getPointHistory(memberId, limit, offset);
+    return ApiResponse.success(res, history, "Lấy lịch sử giao dịch điểm thành công");
+  } catch (error) {
+    console.error("Get Point History Error:", error);
+    return ApiResponse.serverError(res, "Lỗi server khi lấy lịch sử giao dịch điểm");
+  }
+};
+
 module.exports = {
   getCardController,
   getProfileController,
   updateProfileController,
   getMemberByPhone,
+  getInvoicesHistoryController,
+  getPointHistoryController,
 };

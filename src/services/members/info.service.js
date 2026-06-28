@@ -56,6 +56,25 @@ class MemberService {
 
     return member;
   }
+
+  async getInvoicesHistory(memberId, limit = 20, offset = 0) {
+    const invoices = await infoRepository.getMemberInvoices(memberId, limit, offset);
+    if (invoices.length === 0) return [];
+
+    const invoiceIds = invoices.map(i => i.id);
+    const details = await infoRepository.getInvoiceDetailsByInvoiceIds(invoiceIds);
+
+    return invoices.map(invoice => {
+      return {
+        ...invoice,
+        items: details.filter(d => d.invoice_id === invoice.id)
+      };
+    });
+  }
+
+  async getPointHistory(memberId, limit = 20, offset = 0) {
+    return await infoRepository.getMemberPointTransactions(memberId, limit, offset);
+  }
 }
 
 module.exports = new MemberService();

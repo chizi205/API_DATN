@@ -12,6 +12,9 @@ router.use("/members", require("./members/claimPoints.routes"));
 router.use("/employee", require("./employees/auth.routes"));
 router.use("/employee", require("./employees/product.routes"));
 
+//admin
+router.use("/admin", require("./admin/admin.routes"));
+
 //invoice
 router.use("/invoice", require("./invoices/invoices.routes"));
 
@@ -21,6 +24,7 @@ router.use("/paymentMethod", require("./paymentMethods/paymentMethod.routes"));
 //webhook
 router.use("/webhook", require("./webhooks/payos.routes"));
 router.use("/webhook", require("./webhooks/mio.routes"));
+
 //branches
 router.use("/branches", require("./branches/branches.routes"));
 

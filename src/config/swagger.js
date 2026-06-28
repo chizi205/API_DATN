@@ -900,6 +900,162 @@ const swaggerDocument = {
         }
       }
     },
+    "/api/member/invoices": {
+      get: {
+        tags: ["Member Info"],
+        summary: "Lấy lịch sử hóa đơn kèm chi tiết của thành viên",
+        description: "Lấy toàn bộ danh sách hóa đơn của thành viên đang đăng nhập kèm chi tiết các món ăn/sản phẩm đã mua.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng bản ghi tối đa trả về",
+            schema: {
+              type: "integer",
+              default: 20
+            }
+          },
+          {
+            name: "offset",
+            in: "query",
+            required: false,
+            description: "Số lượng bản ghi cần bỏ qua",
+            schema: {
+              type: "integer",
+              default: 0
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 89 },
+                              invoice_code: { type: "string", example: "INV-20260616-000089" },
+                              sub_total: { type: "number", example: 633000 },
+                              discount_amount: { type: "number", example: 0 },
+                              voucher_discount: { type: "number", example: 0 },
+                              final_amount: { type: "number", example: 648000 },
+                              points_earned: { type: "integer", example: 63 },
+                              status: { type: "string", example: "COMPLETED" },
+                              payment_method: { type: "string", example: "mio" },
+                              table_number: { type: "string", example: "A15" },
+                              created_at: { type: "string", format: "date-time", example: "2026-06-16T09:28:54.000Z" },
+                              paid_at: { type: "string", format: "date-time", example: "2026-06-16T09:29:10.000Z" },
+                              branch_name: { type: "string", example: "Chi nhánh 1" },
+                              items: {
+                                type: "array",
+                                items: {
+                                  type: "object",
+                                  properties: {
+                                    id: { type: "integer", example: 3 },
+                                    invoice_id: { type: "integer", example: 89 },
+                                    product_name: { type: "string", example: "Vé Buffet Người Lớn" },
+                                    quantity: { type: "integer", example: 2 },
+                                    unit_price: { type: "number", example: 299000 },
+                                    product_id: { type: "integer", example: 1 },
+                                    created_at: { type: "string", format: "date-time", example: "2026-06-14T05:50:05.000Z" }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
+    },
+    "/api/member/point-history": {
+      get: {
+        tags: ["Member Info"],
+        summary: "Lấy lịch sử giao dịch điểm của thành viên",
+        description: "Lấy toàn bộ danh sách lịch sử cộng/trừ điểm tích lũy của thành viên đang đăng nhập.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng bản ghi tối đa trả về",
+            schema: {
+              type: "integer",
+              default: 20
+            }
+          },
+          {
+            name: "offset",
+            in: "query",
+            required: false,
+            description: "Số lượng bản ghi cần bỏ qua",
+            schema: {
+              type: "integer",
+              default: 0
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 18 },
+                              transaction_type: { type: "string", example: "EARN" },
+                              points: { type: "integer", example: 2 },
+                              multiplier_applied: { type: "number", example: 1.20 },
+                              reference_type: { type: "string", example: "invoice" },
+                              reference_id: { type: "integer", example: 324 },
+                              description: { type: "string", example: "Tích điểm từ hóa đơn INV-20260618-000324 (PayOS)" },
+                              created_at: { type: "string", format: "date-time", example: "2026-06-18T05:31:22.000Z" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
+    },
     "/api/employee/login": {
       post: {
         tags: ["Employee Auth"],

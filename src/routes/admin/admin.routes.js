@@ -1,0 +1,44 @@
+const express = require("express");
+const router = express.Router();
+
+const authenticateEmployee = require("../../middleware/employeeAuth.middleware");
+const authorizeRoles = require("../../middleware/role.middleware");
+
+const AccountController = require("../../controllers/admin/account.controller");
+const VoucherController = require("../../controllers/admin/voucher.controller");
+const PointConfigController = require("../../controllers/admin/pointConfig.controller");
+const ReportController = require("../../controllers/admin/report.controller");
+
+// Apply authentication to all admin sub-routes
+router.use(authenticateEmployee);
+
+// ==================== ACCOUNT MANAGEMENT ====================
+// Only ADMIN can perform account operations
+router.get("/employees", authorizeRoles("ADMIN"), AccountController.getEmployees);
+router.get("/employees/:id", authorizeRoles("ADMIN"), AccountController.getEmployeeById);
+router.post("/employees", authorizeRoles("ADMIN"), AccountController.createEmployee);
+router.put("/employees/:id", authorizeRoles("ADMIN"), AccountController.updateEmployee);
+router.delete("/employees/:id", authorizeRoles("ADMIN"), AccountController.deleteEmployee);
+
+// ==================== VOUCHER MANAGEMENT ====================
+router.get("/vouchers", authorizeRoles("ADMIN", "MANAGER"), VoucherController.getVouchers);
+router.get("/vouchers/:id", authorizeRoles("ADMIN", "MANAGER"), VoucherController.getVoucherById);
+router.post("/vouchers", authorizeRoles("ADMIN", "MANAGER"), VoucherController.createVoucher);
+router.put("/vouchers/:id", authorizeRoles("ADMIN", "MANAGER"), VoucherController.updateVoucher);
+router.delete("/vouchers/:id", authorizeRoles("ADMIN", "MANAGER"), VoucherController.deleteVoucher);
+
+// ==================== POINT CONFIGURATIONS ====================
+router.get("/point-configs", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.getConfigs);
+router.post("/point-configs", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.createConfig);
+router.put("/point-configs/:id", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.updateConfig);
+router.get("/tiers", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.getTiers);
+router.put("/tiers/:id", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.updateTier);
+
+// ==================== REPORTS & STATISTICS ====================
+router.get("/reports/overview", authorizeRoles("ADMIN", "MANAGER"), ReportController.getOverview);
+router.get("/reports/revenue", authorizeRoles("ADMIN", "MANAGER"), ReportController.getRevenue);
+router.get("/reports/members", authorizeRoles("ADMIN", "MANAGER"), ReportController.getMemberStats);
+router.get("/reports/top-customers", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopCustomers);
+router.get("/reports/top-products", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopProducts);
+
+module.exports = router;
