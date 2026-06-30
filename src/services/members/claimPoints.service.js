@@ -9,7 +9,7 @@ const createError = (message, statusCode) => {
 class ClaimPointsService {
   async previewPoints(token, memberId) {
     const queryInvoice = `
-      SELECT id, final_amount, status, member_id, claim_qr_expired_at 
+      SELECT id, final_amount, status, member_id, claim_qr_expired_at , invoice_code
       FROM invoices 
       WHERE claim_qr_token = $1;
     `;
@@ -74,6 +74,7 @@ class ClaimPointsService {
 
     return {
       invoice_id: invoice.id,
+      invoice_code: invoice.invoice_code,
       final_amount: finalAmount,
       expected_points: expectedPoints,
       point_multiplier: pointMultiplier,
