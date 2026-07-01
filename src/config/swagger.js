@@ -53,6 +53,22 @@ const swaggerDocument = {
       name: "Webhooks",
       description: "Các API webhook tích hợp dịch vụ bên ngoài (ví dụ: PayOS)",
     },
+    {
+      name: "Admin Accounts",
+      description: "Các API quản lý tài khoản nhân viên (chỉ dành cho ADMIN)",
+    },
+    {
+      name: "Admin Vouchers",
+      description: "Các API quản lý ưu đãi (chỉ dành cho ADMIN và MANAGER)",
+    },
+    {
+      name: "Admin Point Configs",
+      description: "Các API cấu hình điểm và hạng thành viên (chỉ dành cho ADMIN và MANAGER)",
+    },
+    {
+      name: "Admin Reports",
+      description: "Các API xem báo cáo và thống kê (chỉ dành cho ADMIN và MANAGER)",
+    },
   ],
   components: {
     securitySchemes: {
@@ -280,6 +296,91 @@ const swaggerDocument = {
             },
           },
         },
+      },
+      CreateEmployeeRequest: {
+        type: "object",
+        required: ["employee_code", "full_name", "email", "password"],
+        properties: {
+          employee_code: { type: "string", example: "EMP001" },
+          full_name: { type: "string", example: "Nguyễn Văn A" },
+          email: { type: "string", format: "email", example: "empa@example.com" },
+          password: { type: "string", example: "123456" },
+          role: { type: "string", enum: ["ADMIN", "MANAGER", "STAFF"], example: "STAFF" },
+          branch_id: { type: "integer", example: 1 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      UpdateEmployeeRequest: {
+        type: "object",
+        properties: {
+          full_name: { type: "string", example: "Nguyễn Văn A" },
+          email: { type: "string", format: "email", example: "empa@example.com" },
+          password: { type: "string", example: "123456" },
+          role: { type: "string", enum: ["ADMIN", "MANAGER", "STAFF"], example: "STAFF" },
+          branch_id: { type: "integer", example: 1 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      CreateVoucherRequest: {
+        type: "object",
+        required: ["code", "title", "discount_type", "discount_value"],
+        properties: {
+          code: { type: "string", example: "GIAM20K" },
+          title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+          discount_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], example: "FIXED" },
+          discount_value: { type: "number", example: 20000 },
+          max_discount: { type: "number", example: 20000, nullable: true },
+          point_cost: { type: "integer", example: 50 },
+          stock_quantity: { type: "integer", example: 100 },
+          applicable_tiers: { type: "array", items: { type: "integer" }, example: [1, 2] },
+          valid_from: { type: "string", format: "date-time", example: "2026-07-01T00:00:00.000Z" },
+          valid_to: { type: "string", format: "date-time", example: "2026-12-31T23:59:59.000Z" },
+          expiry_days: { type: "integer", example: 30 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      UpdateVoucherRequest: {
+        type: "object",
+        properties: {
+          code: { type: "string", example: "GIAM20K" },
+          title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+          discount_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], example: "FIXED" },
+          discount_value: { type: "number", example: 20000 },
+          max_discount: { type: "number", example: 20000, nullable: true },
+          point_cost: { type: "integer", example: 50 },
+          stock_quantity: { type: "integer", example: 100 },
+          applicable_tiers: { type: "array", items: { type: "integer" }, example: [1, 2] },
+          valid_from: { type: "string", format: "date-time", example: "2026-07-01T00:00:00.000Z" },
+          valid_to: { type: "string", format: "date-time", example: "2026-12-31T23:59:59.000Z" },
+          expiry_days: { type: "integer", example: 30 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      CreatePointConfigRequest: {
+        type: "object",
+        required: ["spend_amount", "earn_points"],
+        properties: {
+          spend_amount: { type: "number", example: 10000 },
+          earn_points: { type: "integer", example: 1 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      UpdatePointConfigRequest: {
+        type: "object",
+        properties: {
+          spend_amount: { type: "number", example: 10000 },
+          earn_points: { type: "integer", example: 1 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      UpdateTierRequest: {
+        type: "object",
+        properties: {
+          tier_name: { type: "string", example: "Gold" },
+          min_points: { type: "integer", example: 2000 },
+          point_multiplier: { type: "number", example: 1.2 },
+          color_code: { type: "string", example: "#FFD700" }
+        }
       },
     },
   },
@@ -1907,6 +2008,982 @@ const swaggerDocument = {
           },
         },
       },
+    },
+    "/api/admin/employees": {
+      get: {
+        tags: ["Admin Accounts"],
+        summary: "Lấy danh sách nhân viên",
+        description: "Lấy danh sách tài khoản nhân viên (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 20 }
+          },
+          {
+            name: "offset",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 0 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              employee_code: { type: "string", example: "EMP001" },
+                              full_name: { type: "string", example: "Nguyễn Văn A" },
+                              email: { type: "string", example: "empa@example.com" },
+                              role: { type: "string", example: "STAFF" },
+                              branch_id: { type: "integer", example: 1 },
+                              is_active: { type: "boolean", example: true },
+                              created_at: { type: "string", format: "date-time" },
+                              updated_at: { type: "string", format: "date-time" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Accounts"],
+        summary: "Tạo tài khoản nhân viên mới",
+        description: "Tạo tài khoản cho nhân viên mới (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateEmployeeRequest" }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            employee_code: { type: "string", example: "EMP001" },
+                            full_name: { type: "string", example: "Nguyễn Văn A" },
+                            email: { type: "string", example: "empa@example.com" },
+                            role: { type: "string", example: "STAFF" },
+                            branch_id: { type: "integer", example: 1 },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu không hợp lệ hoặc trùng lặp" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/employees/{id}": {
+      get: {
+        tags: ["Admin Accounts"],
+        summary: "Chi tiết tài khoản nhân viên",
+        description: "Lấy chi tiết tài khoản nhân viên theo ID (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            employee_code: { type: "string", example: "EMP001" },
+                            full_name: { type: "string", example: "Nguyễn Văn A" },
+                            email: { type: "string", example: "empa@example.com" },
+                            role: { type: "string", example: "STAFF" },
+                            branch_id: { type: "integer", example: 1 },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Tài khoản nhân viên không tồn tại" }
+        }
+      },
+      put: {
+        tags: ["Admin Accounts"],
+        summary: "Cập nhật tài khoản nhân viên",
+        description: "Cập nhật tài khoản nhân viên theo ID (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateEmployeeRequest" }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            employee_code: { type: "string", example: "EMP001" },
+                            full_name: { type: "string", example: "Nguyễn Văn A" },
+                            email: { type: "string", example: "empa@example.com" },
+                            role: { type: "string", example: "STAFF" },
+                            branch_id: { type: "integer", example: 1 },
+                            is_active: { type: "boolean", example: true },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Tài khoản nhân viên không tồn tại" }
+        }
+      },
+      delete: {
+        tags: ["Admin Accounts"],
+        summary: "Vô hiệu hóa tài khoản nhân viên",
+        description: "Vô hiệu hóa hoạt động của tài khoản nhân viên (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Tài khoản nhân viên không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/vouchers": {
+      get: {
+        tags: ["Admin Vouchers"],
+        summary: "Lấy danh sách tất cả voucher",
+        description: "Lấy danh sách tất cả các voucher đang được quản lý (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 20 }
+          },
+          {
+            name: "offset",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 0 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              code: { type: "string", example: "GIAM20K" },
+                              title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+                              discount_type: { type: "string", example: "FIXED" },
+                              discount_value: { type: "number", example: 20000 },
+                              max_discount: { type: "number", example: 20000, nullable: true },
+                              point_cost: { type: "integer", example: 50 },
+                              stock_quantity: { type: "integer", example: 100 },
+                              applicable_tiers: { type: "array", items: { type: "integer" } },
+                              valid_from: { type: "string", format: "date-time" },
+                              valid_to: { type: "string", format: "date-time" },
+                              expiry_days: { type: "integer", example: 30 },
+                              is_active: { type: "boolean", example: true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Vouchers"],
+        summary: "Tạo ưu đãi voucher mới",
+        description: "Tạo mới một chương trình ưu đãi voucher (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateVoucherRequest" }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            code: { type: "string", example: "GIAM20K" },
+                            title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+                            discount_type: { type: "string", example: "FIXED" },
+                            discount_value: { type: "number", example: 20000 },
+                            max_discount: { type: "number", example: 20000, nullable: true },
+                            point_cost: { type: "integer", example: 50 },
+                            stock_quantity: { type: "integer", example: 100 },
+                            applicable_tiers: { type: "array", items: { type: "integer" } },
+                            valid_from: { type: "string", format: "date-time" },
+                            valid_to: { type: "string", format: "date-time" },
+                            expiry_days: { type: "integer", example: 30 },
+                            is_active: { type: "boolean", example: true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Mã ưu đãi đã được sử dụng hoặc dữ liệu không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/vouchers/{id}": {
+      get: {
+        tags: ["Admin Vouchers"],
+        summary: "Lấy chi tiết voucher",
+        description: "Lấy chi tiết voucher theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            code: { type: "string", example: "GIAM20K" },
+                            title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+                            discount_type: { type: "string", example: "FIXED" },
+                            discount_value: { type: "number", example: 20000 },
+                            max_discount: { type: "number", example: 20000, nullable: true },
+                            point_cost: { type: "integer", example: 50 },
+                            stock_quantity: { type: "integer", example: 100 },
+                            applicable_tiers: { type: "array", items: { type: "integer" } },
+                            valid_from: { type: "string", format: "date-time" },
+                            valid_to: { type: "string", format: "date-time" },
+                            expiry_days: { type: "integer", example: 30 },
+                            is_active: { type: "boolean", example: true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Ưu đãi không tồn tại" }
+        }
+      },
+      put: {
+        tags: ["Admin Vouchers"],
+        summary: "Cập nhật ưu đãi voucher",
+        description: "Cập nhật thông tin voucher theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateVoucherRequest" }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            code: { type: "string", example: "GIAM20K" },
+                            title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
+                            discount_type: { type: "string", example: "FIXED" },
+                            discount_value: { type: "number", example: 20000 },
+                            max_discount: { type: "number", example: 20000, nullable: true },
+                            point_cost: { type: "integer", example: 50 },
+                            stock_quantity: { type: "integer", example: 100 },
+                            applicable_tiers: { type: "array", items: { type: "integer" } },
+                            valid_from: { type: "string", format: "date-time" },
+                            valid_to: { type: "string", format: "date-time" },
+                            expiry_days: { type: "integer", example: 30 },
+                            is_active: { type: "boolean", example: true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Mã ưu đãi mới đã được sử dụng hoặc dữ liệu không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Ưu đãi không tồn tại" }
+        }
+      },
+      delete: {
+        tags: ["Admin Vouchers"],
+        summary: "Vô hiệu hóa ưu đãi voucher",
+        description: "Vô hiệu hóa hoạt động của voucher (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Ưu đãi không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/point-configs": {
+      get: {
+        tags: ["Admin Point Configs"],
+        summary: "Lấy cấu hình điểm tích lũy",
+        description: "Lấy toàn bộ danh sách cấu hình điểm tích lũy (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              spend_amount: { type: "number", example: 10000 },
+                              earn_points: { type: "integer", example: 1 },
+                              is_active: { type: "boolean", example: true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Point Configs"],
+        summary: "Tạo cấu hình điểm tích lũy mới",
+        description: "Tạo cấu hình quy đổi điểm mới. Nếu set is_active=true thì các cấu hình cũ sẽ bị deactive (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreatePointConfigRequest" }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            spend_amount: { type: "number", example: 10000 },
+                            earn_points: { type: "integer", example: 1 },
+                            is_active: { type: "boolean", example: true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/point-configs/{id}": {
+      put: {
+        tags: ["Admin Point Configs"],
+        summary: "Cập nhật cấu hình điểm tích lũy",
+        description: "Cập nhật cấu hình quy đổi điểm theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdatePointConfigRequest" }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            spend_amount: { type: "number", example: 10000 },
+                            earn_points: { type: "integer", example: 1 },
+                            is_active: { type: "boolean", example: true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Cấu hình điểm không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/tiers": {
+      get: {
+        tags: ["Admin Point Configs"],
+        summary: "Lấy cấu hình hạng thành viên",
+        description: "Lấy danh sách các hạng thành viên kèm hệ số điểm (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              tier_name: { type: "string", example: "Silver" },
+                              min_points: { type: "integer", example: 1000 },
+                              point_multiplier: { type: "number", example: 1.2 },
+                              color_code: { type: "string", example: "#C0C0C0" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/tiers/{id}": {
+      put: {
+        tags: ["Admin Point Configs"],
+        summary: "Cập nhật hạng thành viên",
+        description: "Cập nhật cấu hình của hạng thành viên theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateTierRequest" }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            tier_name: { type: "string", example: "Silver" },
+                            min_points: { type: "integer", example: 1000 },
+                            point_multiplier: { type: "number", example: 1.2 },
+                            color_code: { type: "string", example: "#C0C0C0" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" },
+          404: { description: "Hạng thành viên không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/reports/overview": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Báo cáo tổng quan Dashboard",
+        description: "Lấy số liệu tổng hợp doanh thu, số hóa đơn, số lượng thành viên, và tỷ lệ tăng trưởng (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            todayRevenue: { type: "number", example: 5000000 },
+                            todayInvoices: { type: "integer", example: 25 },
+                            activeMembers: { type: "integer", example: 120 },
+                            growthRate: { type: "number", example: 12.5 }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/reports/revenue": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Báo cáo doanh thu",
+        description: "Lấy doanh thu theo thời gian lọc từ start_date đến end_date (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "start_date",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "date-time" }
+          },
+          {
+            name: "end_date",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "date-time" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              date: { type: "string", format: "date", example: "2026-06-15" },
+                              total_revenue: { type: "number", example: 15400000 },
+                              invoice_count: { type: "integer", example: 78 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/reports/members": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Thống kê phân bố hạng thành viên",
+        description: "Lấy số lượng thành viên phân loại theo từng hạng thẻ (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              tier_name: { type: "string", example: "Silver" },
+                              member_count: { type: "integer", example: 342 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/reports/top-customers": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Top khách hàng tiêu biểu",
+        description: "Lấy danh sách các khách hàng chi tiêu nhiều nhất (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 10 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              member_id: { type: "integer", example: 12 },
+                              full_name: { type: "string", example: "Nguyễn Văn B" },
+                              phone: { type: "string", example: "0987654321" },
+                              total_spent: { type: "number", example: 12500000 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/reports/top-products": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Top sản phẩm bán chạy nhất",
+        description: "Lấy danh sách các sản phẩm/món ăn có doanh số cao nhất (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 10 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              product_name: { type: "string", example: "Cà phê sữa đá" },
+                              total_quantity: { type: "integer", example: 512 },
+                              total_revenue: { type: "number", example: 14848000 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
     },
   },
 };
