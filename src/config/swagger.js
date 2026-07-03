@@ -17,25 +17,32 @@ const swaggerDocument = {
     },
   ],
   tags: [
+    // === MEMBER APP ===
     {
       name: "Member Auth",
       description: "Các API xác thực và tài khoản cho Thành viên (Member)",
     },
     {
       name: "Member Info",
-      description: "Các API thông tin cá nhân và thẻ thành viên",
-    },
-    {
-      name: "Member Device",
-      description: "Các API liên quan đến thiết bị và thông báo FCM",
+      description: "Các API thông tin cá nhân, thẻ thành viên, điểm và hóa đơn lịch sử",
     },
     {
       name: "Member Vouchers",
       description: "Các API quản lý, tra cứu và đổi voucher dành cho Thành viên",
     },
     {
+      name: "Member Notifications",
+      description: "Các API quản lý và nhận thông báo cá nhân của Thành viên",
+    },
+    {
+      name: "Member Device",
+      description: "Các API liên quan đến thiết bị và đăng ký nhận thông báo FCM",
+    },
+
+    // === EMPLOYEE APP ===
+    {
       name: "Employee Auth",
-      description: "Các API xác thực và tài khoản cho Nhân viên (Employee)",
+      description: "Các API xác thực và tài khoản dành cho Nhân viên (Employee)",
     },
     {
       name: "Employee Products & Categories",
@@ -43,31 +50,35 @@ const swaggerDocument = {
     },
     {
       name: "Employee Invoices",
-      description: "Các API quản lý hóa đơn (chỉ dành cho Nhân viên)",
+      description: "Các API quản lý và xử lý hóa đơn (chỉ dành cho Nhân viên)",
     },
-    {
-      name: "Payment Methods",
-      description: "Các API quản lý và tra cứu phương thức thanh toán",
-    },
-    {
-      name: "Webhooks",
-      description: "Các API webhook tích hợp dịch vụ bên ngoài (ví dụ: PayOS)",
-    },
+
+    // === ADMIN & MANAGER ===
     {
       name: "Admin Accounts",
       description: "Các API quản lý tài khoản nhân viên (chỉ dành cho ADMIN)",
     },
     {
       name: "Admin Vouchers",
-      description: "Các API quản lý ưu đãi (chỉ dành cho ADMIN và MANAGER)",
+      description: "Các API quản lý cấu hình voucher ưu đãi hệ thống (chỉ dành cho ADMIN/MANAGER)",
     },
     {
       name: "Admin Point Configs",
-      description: "Các API cấu hình điểm và hạng thành viên (chỉ dành cho ADMIN và MANAGER)",
+      description: "Các API cấu hình điểm tích lũy và các hạng thành viên (chỉ dành cho ADMIN/MANAGER)",
     },
     {
       name: "Admin Reports",
-      description: "Các API xem báo cáo và thống kê (chỉ dành cho ADMIN và MANAGER)",
+      description: "Các API xem báo cáo thống kê hoạt động cửa hàng (chỉ dành cho ADMIN/MANAGER)",
+    },
+
+    // === SYSTEM INTEGRATIONS ===
+    {
+      name: "Payment Methods",
+      description: "Các API quản lý và tra cứu phương thức thanh toán",
+    },
+    {
+      name: "Webhooks",
+      description: "Các API webhook tích hợp dịch vụ bên ngoài (PayOS, Mio...)",
     },
   ],
   components: {
@@ -2982,6 +2993,133 @@ const swaggerDocument = {
           },
           401: { description: "Chưa xác thực" },
           403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/member/notifications": {
+      get: {
+        tags: ["Member Notifications"],
+        summary: "Lấy danh sách thông báo của thành viên",
+        description: "Lấy toàn bộ danh sách thông báo cá nhân và hệ thống dành cho thành viên hiện tại.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 20 }
+          },
+          {
+            name: "offset",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 0 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer", example: 1 },
+                              member_id: { type: "integer", example: 12, nullable: true },
+                              title: { type: "string", example: "Tích lũy điểm thành công" },
+                              body: { type: "string", example: "Bạn vừa tích thành công +10 điểm từ hóa đơn INV-001." },
+                              type: { type: "string", example: "POINTS_EARNED" },
+                              reference_id: { type: "integer", example: 5, nullable: true },
+                              reference_type: { type: "string", example: "INVOICE", nullable: true },
+                              is_read: { type: "boolean", example: false },
+                              read_at: { type: "string", format: "date-time", nullable: true },
+                              created_at: { type: "string", format: "date-time" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" }
+        }
+      }
+    },
+    "/api/member/notifications/{id}/read": {
+      patch: {
+        tags: ["Member Notifications"],
+        summary: "Đánh dấu đã đọc một thông báo",
+        description: "Đánh dấu đã đọc một thông báo cụ thể dựa trên ID.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            is_read: { type: "boolean", example: true },
+                            read_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thao tác trên thông báo này" },
+          404: { description: "Không tìm thấy thông báo" }
+        }
+      }
+    },
+    "/api/member/notifications/read-all": {
+      patch: {
+        tags: ["Member Notifications"],
+        summary: "Đánh dấu đọc tất cả thông báo",
+        description: "Đánh dấu đã đọc toàn bộ danh sách thông báo chưa đọc của thành viên.",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" }
         }
       }
     },

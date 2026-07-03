@@ -1,4 +1,5 @@
 const pool = require("../../config/database");
+const notificationRepository = require("./notification.repository");
 
 class VoucherRepository {
   async getMemberWithTier(memberId) {
@@ -134,6 +135,31 @@ class VoucherRepository {
         memberVoucher.id,
         `Đổi voucher: ${voucherCode}`,
       ]);
+
+      // Get voucher info to include title in notifications
+      const getVoucherInfoQuery = `SELECT title FROM vouchers WHERE id = $1;`;
+      const voucherInfoRes = await client.query(getVoucherInfoQuery, [voucherId]);
+      const voucherTitle = voucherInfoRes.rows[0]?.title || "Voucher ưu đãi";
+
+      // 5. Insert POINTS_REDEEMED notification
+      await notificationRepository.createNotification({
+        member_id: memberId,
+        title: "Đổi điểm quà tặng",
+        body: `Bạn đã dùng -${pointCost} điểm tích lũy để đổi ưu đãi.`,
+        type: "POINTS_REDEEMED",
+        reference_id: memberVoucher.id,
+        reference_type: "MEMBER_VOUCHER"
+      }, client);
+
+      // 6. Insert VOUCHER_RECEIVED notification
+      await notificationRepository.createNotification({
+        member_id: memberId,
+        title: "Nhận ưu đãi mới thành công",
+        body: `Chúc mừng bạn đã nhận voucher "${voucherTitle}". Hạn sử dụng đến ngày ${new Date(expiryDate).toLocaleDateString("vi-VN")}.`,
+        type: "VOUCHER_RECEIVED",
+        reference_id: memberVoucher.id,
+        reference_type: "MEMBER_VOUCHER"
+      }, client);
 
       await client.query("COMMIT");
 

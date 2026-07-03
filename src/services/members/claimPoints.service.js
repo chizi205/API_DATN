@@ -1,4 +1,5 @@
 const pool = require("../../config/database");
+const notificationRepository = require("../../repositories/members/notification.repository");
 
 const createError = (message, statusCode) => {
   const err = new Error(message);
@@ -245,7 +246,27 @@ class ClaimPointsService {
 
         isUpgraded = true;
         newTierName = highestTier.tier_name;
+
+        // Insert TIER_UPGRADE notification
+        await notificationRepository.createNotification({
+          member_id: memberId,
+          title: "Thăng hạng thành viên!",
+          body: `Chúc mừng bạn đã thăng hạng lên thành viên ${newTierName}! Nhận ngay ưu đãi hạng mới.`,
+          type: "TIER_UPGRADE",
+          reference_id: highestTier.id,
+          reference_type: "MEMBERSHIP_TIER"
+        }, client);
       }
+
+      // Insert POINTS_EARNED notification
+      await notificationRepository.createNotification({
+        member_id: memberId,
+        title: "Tích lũy điểm thành công",
+        body: `Bạn vừa tích thành công +${pointsToEarn} điểm từ hóa đơn ${invoice.invoice_code}.`,
+        type: "POINTS_EARNED",
+        reference_id: invoice.id,
+        reference_type: "INVOICE"
+      }, client);
 
       await client.query("COMMIT");
 
