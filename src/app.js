@@ -1,5 +1,6 @@
 const express = require('express');
-const routes = require('./routes');         
+const routes = require('./routes');
+const cors = require('cors');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./middleware/logger');
 const path = require("path");
@@ -7,6 +8,11 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./config/swagger');
 
 const app = express();
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

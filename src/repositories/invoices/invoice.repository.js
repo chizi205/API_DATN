@@ -9,11 +9,11 @@ class InvoiceRepository {
       employee_id, branch_id, member_id,
       sub_total, discount_amount, voucher_discount, final_amount,
       points_earned, points_multiplier, status, table_number,
-      tax_amount, service_charge
+      tax_amount, service_charge, claim_qr_token, claim_qr_expired_at
     )
     VALUES (
       $1, $2, $3, $4, $5, $6, $7,
-      $8, $9, $10, $11, $12, $13
+      $8, $9, $10, $11, $12, $13, $14, $15
     )
     RETURNING *;
   `;
@@ -32,6 +32,8 @@ class InvoiceRepository {
       data.table_number || null,
       data.tax_amount || 0,
       data.service_charge || 0,
+      data.claim_qr_token || null,
+      data.claim_qr_expired_at || null,
     ];
 
     const { rows } = await db.query(insertQuery, values);
@@ -176,20 +178,10 @@ class InvoiceRepository {
 
   async markAsPaid(invoiceId, paymentMethod, paymentMethodId, client = null) {
     const db = client || pool;
-    const crypto = require("crypto");
 
     const findQuery = `SELECT member_id, applied_member_voucher_id FROM invoices WHERE id = $1`;
     const { rows: findRows } = await db.query(findQuery, [invoiceId]);
-    const memberId = findRows[0]?.member_id;
     const appliedMemberVoucherId = findRows[0]?.applied_member_voucher_id;
-
-    let claimQrToken = null;
-    let claimQrExpiredAt = null;
-
-    if (memberId === null || memberId === undefined) {
-      claimQrToken = crypto.randomUUID();
-      claimQrExpiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    }
 
     const query = `
       UPDATE invoices 
@@ -197,11 +189,9 @@ class InvoiceRepository {
         status = 'COMPLETED',
         payment_method_id = $1,
         payment_method = $2,
-        claim_qr_token = $3,
-        claim_qr_expired_at = $4,
         paid_at = NOW(),
         updated_at = NOW()
-      WHERE id = $5 
+      WHERE id = $3 
       RETURNING 
         id, 
         invoice_code, 
@@ -220,8 +210,6 @@ class InvoiceRepository {
     const { rows } = await db.query(query, [
       paymentMethodId,
       paymentMethod,
-      claimQrToken,
-      claimQrExpiredAt,
       invoiceId,
     ]);
 
@@ -299,6 +287,8 @@ class InvoiceRepository {
       member_id = $1,
       points_multiplier = $2,
       points_earned = $3,
+      claim_qr_token = NULL,
+      claim_qr_expired_at = NULL,
       updated_at = NOW()
     WHERE id = $4
     RETURNING *;

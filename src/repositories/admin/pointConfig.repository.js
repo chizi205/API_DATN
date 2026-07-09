@@ -84,7 +84,6 @@ class PointConfigRepository {
 
     if (setClauses.length === 0) return null;
 
-    // Check if updated_at exists before adding it
     setClauses.push(`updated_at = NOW()`);
 
     const query = `

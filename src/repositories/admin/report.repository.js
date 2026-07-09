@@ -31,7 +31,7 @@ class ReportRepository {
   async getRevenueStats(startDate, endDate) {
     let query = `
       SELECT 
-        DATE(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh') as date, 
+        TO_CHAR(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') as date, 
         COALESCE(SUM(final_amount), 0) as revenue, 
         COUNT(id) as order_count
       FROM invoices
@@ -41,18 +41,19 @@ class ReportRepository {
     let index = 1;
 
     if (startDate) {
-      query += ` AND paid_at >= $${index++}`;
+      query += ` AND TO_CHAR(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') >= $${index++}`;
       params.push(startDate);
     }
     if (endDate) {
-      query += ` AND paid_at <= $${index++}`;
+      query += ` AND TO_CHAR(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') <= $${index++}`;
       params.push(endDate);
     }
 
     query += `
-      GROUP BY DATE(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')
+      GROUP BY TO_CHAR(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
       ORDER BY date ASC;
     `;
+    console.log(query)
 
     const { rows } = await pool.query(query, params);
     return rows.map(r => ({
@@ -126,6 +127,37 @@ class ReportRepository {
       quantity_sold: parseInt(r.quantity_sold),
       revenue: parseFloat(r.revenue)
     }));
+  }
+
+  async getMonthlyRevenueStats(year) {
+    const query = `
+      SELECT 
+        EXTRACT(MONTH FROM paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh') as month,
+        COALESCE(SUM(final_amount), 0) as revenue,
+        COUNT(id) as order_count
+      FROM invoices
+      WHERE status = 'COMPLETED'
+        AND EXTRACT(YEAR FROM paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh') = $1
+      GROUP BY EXTRACT(MONTH FROM paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')
+      ORDER BY month ASC;
+    `;
+    const { rows } = await pool.query(query, [year]);
+
+    const monthlyStats = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      revenue: 0,
+      order_count: 0
+    }));
+
+    rows.forEach(r => {
+      const m = parseInt(r.month, 10);
+      if (m >= 1 && m <= 12) {
+        monthlyStats[m - 1].revenue = parseFloat(r.revenue);
+        monthlyStats[m - 1].order_count = parseInt(r.order_count, 10);
+      }
+    });
+
+    return monthlyStats;
   }
 }
 

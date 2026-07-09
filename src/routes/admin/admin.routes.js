@@ -8,6 +8,8 @@ const AccountController = require("../../controllers/admin/account.controller");
 const VoucherController = require("../../controllers/admin/voucher.controller");
 const PointConfigController = require("../../controllers/admin/pointConfig.controller");
 const ReportController = require("../../controllers/admin/report.controller");
+const CustomerController = require("../../controllers/admin/customer.controller");
+const InvoiceController = require("../../controllers/admin/invoice.controller");
 
 // Apply authentication to all admin sub-routes
 router.use(authenticateEmployee);
@@ -34,11 +36,26 @@ router.put("/point-configs/:id", authorizeRoles("ADMIN", "MANAGER"), PointConfig
 router.get("/tiers", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.getTiers);
 router.put("/tiers/:id", authorizeRoles("ADMIN", "MANAGER"), PointConfigController.updateTier);
 
+// ==================== CUSTOMER MANAGEMENT ====================
+router.get("/customers", authorizeRoles("ADMIN", "MANAGER"), CustomerController.getCustomers);
+router.get("/customers/:id", authorizeRoles("ADMIN", "MANAGER"), CustomerController.getCustomerById);
+router.post("/customers", authorizeRoles("ADMIN", "MANAGER"), CustomerController.createCustomer);
+router.put("/customers/:id", authorizeRoles("ADMIN", "MANAGER"), CustomerController.updateCustomer);
+router.delete("/customers/:id", authorizeRoles("ADMIN"), CustomerController.deleteCustomer);
+
+// ==================== INVOICE MANAGEMENT ====================
+router.get("/invoices", authorizeRoles("ADMIN", "MANAGER"), InvoiceController.getInvoices);
+router.get("/invoices/:id", authorizeRoles("ADMIN", "MANAGER"), InvoiceController.getInvoiceById);
+router.put("/invoices/:id/status", authorizeRoles("ADMIN"), InvoiceController.updateInvoiceStatus);
+
 // ==================== REPORTS & STATISTICS ====================
 router.get("/reports/overview", authorizeRoles("ADMIN", "MANAGER"), ReportController.getOverview);
 router.get("/reports/revenue", authorizeRoles("ADMIN", "MANAGER"), ReportController.getRevenue);
+router.get("/reports/monthly-revenue", authorizeRoles("ADMIN", "MANAGER"), ReportController.getMonthlyRevenue);
 router.get("/reports/members", authorizeRoles("ADMIN", "MANAGER"), ReportController.getMemberStats);
 router.get("/reports/top-customers", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopCustomers);
 router.get("/reports/top-products", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopProducts);
 
 module.exports = router;
+
+

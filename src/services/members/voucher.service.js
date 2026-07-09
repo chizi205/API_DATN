@@ -44,6 +44,14 @@ class VoucherService {
         }
       }
 
+      const applicableTiersInfo = applicableTiers.map((tierId) => {
+        const tier = tiers.find((t) => Number(t.id) === tierId);
+        return {
+          id: tierId,
+          tier_name: tier ? tier.tier_name : "Unknown",
+        };
+      });
+
       return {
         id: voucher.id,
         code: voucher.code,
@@ -53,7 +61,7 @@ class VoucherService {
         max_discount: voucher.max_discount ? parseFloat(voucher.max_discount) : null,
         point_cost: voucher.point_cost,
         stock_quantity: voucher.stock_quantity,
-        applicable_tiers: voucher.applicable_tiers,
+        applicable_tiers: applicableTiersInfo,
         valid_from: voucher.valid_from,
         valid_to: voucher.valid_to,
         expiry_days: voucher.expiry_days,

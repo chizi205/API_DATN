@@ -70,6 +70,14 @@ const swaggerDocument = {
       name: "Admin Reports",
       description: "Các API xem báo cáo thống kê hoạt động cửa hàng (chỉ dành cho ADMIN/MANAGER)",
     },
+    {
+      name: "Admin Customers",
+      description: "Các API quản lý khách hàng/thành viên (chỉ dành cho ADMIN/MANAGER)",
+    },
+    {
+      name: "Admin Invoices",
+      description: "Các API quản lý hóa đơn hệ thống (chỉ dành cho ADMIN/MANAGER)",
+    },
 
     // === SYSTEM INTEGRATIONS ===
     {
@@ -391,6 +399,35 @@ const swaggerDocument = {
           min_points: { type: "integer", example: 2000 },
           point_multiplier: { type: "number", example: 1.2 },
           color_code: { type: "string", example: "#FFD700" }
+        }
+      },
+      CreateCustomerRequest: {
+        type: "object",
+        required: ["phone_number", "full_name"],
+        properties: {
+          phone_number: { type: "string", example: "0987654321" },
+          full_name: { type: "string", example: "Nguyễn Văn C" },
+          email: { type: "string", format: "email", example: "customerc@example.com" },
+          gender: { type: "string", enum: ["MALE", "FEMALE", "OTHER", "UNKNOWN"], example: "MALE" },
+          date_of_birth: { type: "string", example: "20/05/2000" },
+          tier_id: { type: "integer", example: 1 },
+          current_points: { type: "integer", example: 0 },
+          total_accumulated_points: { type: "integer", example: 0 },
+          is_active: { type: "boolean", example: true }
+        }
+      },
+      UpdateCustomerRequest: {
+        type: "object",
+        properties: {
+          phone_number: { type: "string", example: "0987654321" },
+          full_name: { type: "string", example: "Nguyễn Văn C" },
+          email: { type: "string", format: "email", example: "customerc@example.com" },
+          gender: { type: "string", enum: ["MALE", "FEMALE", "OTHER", "UNKNOWN"], example: "MALE" },
+          date_of_birth: { type: "string", example: "20/05/2000" },
+          tier_id: { type: "integer", example: 1 },
+          current_points: { type: "integer", example: 0 },
+          total_accumulated_points: { type: "integer", example: 0 },
+          is_active: { type: "boolean", example: true }
         }
       },
     },
@@ -1533,6 +1570,8 @@ const swaggerDocument = {
                             service_charge: { type: "number", example: 5000 },
                             created_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09Z" },
                             updated_at: { type: "string", format: "date-time", example: "2026-06-15T09:50:09Z" },
+                            claim_qr_token: { type: "string", nullable: true, example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" },
+                            claim_qr_expired_at: { type: "string", format: "date-time", nullable: true, example: "2026-06-16T09:50:09Z" },
                             items: {
                               type: "array",
                               items: {
@@ -2265,6 +2304,407 @@ const swaggerDocument = {
         }
       }
     },
+    "/api/admin/customers": {
+      get: {
+        tags: ["Admin Customers"],
+        summary: "Lấy danh sách khách hàng",
+        description: "Lấy danh sách tài khoản thành viên/khách hàng (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "search", in: "query", required: false, schema: { type: "string" }, description: "Tìm theo tên, SĐT hoặc email" },
+          { name: "tierId", in: "query", required: false, schema: { type: "integer" }, description: "Lọc theo ID hạng thành viên" },
+          { name: "isActive", in: "query", required: false, schema: { type: "string" }, description: "Lọc theo trạng thái hoạt động ('true' hoặc 'false')" },
+          { name: "page", in: "query", required: false, schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", required: false, schema: { type: "integer", default: 10 } }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            customers: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer" },
+                                  full_name: { type: "string" },
+                                  phone_number: { type: "string" },
+                                  email: { type: "string" },
+                                  gender: { type: "string" },
+                                  date_of_birth: { type: "string" },
+                                  current_points: { type: "integer" },
+                                  total_accumulated_points: { type: "integer" },
+                                  barcode: { type: "string" },
+                                  is_active: { type: "boolean" },
+                                  tier_name: { type: "string" },
+                                  color_code: { type: "string" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer" },
+                                page: { type: "integer" },
+                                limit: { type: "integer" },
+                                pages: { type: "integer" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Customers"],
+        summary: "Tạo khách hàng mới",
+        description: "Tạo tài khoản thành viên/khách hàng thủ công (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateCustomerRequest" }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer" },
+                            full_name: { type: "string" },
+                            phone_number: { type: "string" },
+                            barcode: { type: "string" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Số điện thoại đã tồn tại hoặc dữ liệu không hợp lệ" },
+          401: { description: "Chưa xác thực" }
+        }
+      }
+    },
+    "/api/admin/customers/{id}": {
+      get: {
+        tags: ["Admin Customers"],
+        summary: "Lấy chi tiết khách hàng",
+        description: "Lấy thông tin chi tiết và lịch sử mua hàng của khách hàng theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer" },
+                            full_name: { type: "string" },
+                            phone_number: { type: "string" },
+                            email: { type: "string" },
+                            gender: { type: "string" },
+                            date_of_birth: { type: "string" },
+                            current_points: { type: "integer" },
+                            total_accumulated_points: { type: "integer" },
+                            barcode: { type: "string" },
+                            is_active: { type: "boolean" },
+                            tier_name: { type: "string" },
+                            color_code: { type: "string" },
+                            invoices: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer" },
+                                  invoice_code: { type: "string" },
+                                  final_amount: { type: "number" },
+                                  status: { type: "string" },
+                                  paid_at: { type: "string" },
+                                  created_at: { type: "string" },
+                                  branch_name: { type: "string" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Khách hàng không tồn tại" }
+        }
+      },
+      put: {
+        tags: ["Admin Customers"],
+        summary: "Cập nhật thông tin khách hàng",
+        description: "Cập nhật các thông tin của khách hàng theo ID (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateCustomerRequest" }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          400: { description: "Số điện thoại đã được sử dụng hoặc dữ liệu không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Khách hàng không tồn tại" }
+        }
+      },
+      delete: {
+        tags: ["Admin Customers"],
+        summary: "Vô hiệu hóa khách hàng",
+        description: "Vô hiệu hóa hoạt động của tài khoản khách hàng (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Khách hàng không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/invoices": {
+      get: {
+        tags: ["Admin Invoices"],
+        summary: "Lấy danh sách tất cả hóa đơn",
+        description: "Lấy toàn bộ danh sách hóa đơn trong hệ thống có bộ lọc và phân trang (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "search", in: "query", required: false, schema: { type: "string" }, description: "Tìm kiếm theo mã hóa đơn" },
+          { name: "branchId", in: "query", required: false, schema: { type: "integer" } },
+          { name: "employeeId", in: "query", required: false, schema: { type: "integer" } },
+          { name: "memberId", in: "query", required: false, schema: { type: "integer" } },
+          { name: "status", in: "query", required: false, schema: { type: "string", enum: ["DRAFT", "COMPLETED", "CANCELLED"] } },
+          { name: "startDate", in: "query", required: false, schema: { type: "string" }, description: "ISO format (ví dụ: '2026-07-01T00:00:00Z')" },
+          { name: "endDate", in: "query", required: false, schema: { type: "string" } },
+          { name: "page", in: "query", required: false, schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", required: false, schema: { type: "integer", default: 10 } }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            invoices: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer" },
+                                  invoice_code: { type: "string" },
+                                  sub_total: { type: "number" },
+                                  discount_amount: { type: "number" },
+                                  voucher_discount: { type: "number" },
+                                  final_amount: { type: "number" },
+                                  status: { type: "string" },
+                                  created_at: { type: "string" },
+                                  branch_name: { type: "string" },
+                                  employee_name: { type: "string" },
+                                  member_name: { type: "string" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer" },
+                                page: { type: "integer" },
+                                limit: { type: "integer" },
+                                pages: { type: "integer" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" }
+        }
+      }
+    },
+    "/api/admin/invoices/{id}": {
+      get: {
+        tags: ["Admin Invoices"],
+        summary: "Lấy chi tiết hóa đơn",
+        description: "Lấy thông tin chi tiết một hóa đơn kèm các dòng sản phẩm chi tiết (chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer" },
+                            invoice_code: { type: "string" },
+                            sub_total: { type: "number" },
+                            discount_amount: { type: "number" },
+                            voucher_discount: { type: "number" },
+                            final_amount: { type: "number" },
+                            status: { type: "string" },
+                            table_number: { type: "string" },
+                            created_at: { type: "string" },
+                            branch_name: { type: "string" },
+                            employee_name: { type: "string" },
+                            member_name: { type: "string" },
+                            member_phone: { type: "string" },
+                            details: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer" },
+                                  product_name: { type: "string" },
+                                  quantity: { type: "integer" },
+                                  unit_price: { type: "number" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Hóa đơn không tồn tại" }
+        }
+      }
+    },
+    "/api/admin/invoices/{id}/status": {
+      put: {
+        tags: ["Admin Invoices"],
+        summary: "Cập nhật trạng thái hóa đơn",
+        description: "Cập nhật trạng thái cho hóa đơn (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["status"],
+                properties: {
+                  status: { type: "string", enum: ["DRAFT", "COMPLETED", "CANCELLED"], example: "CANCELLED" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ApiResponse" }
+              }
+            }
+          },
+          400: { description: "Trạng thái không hợp lệ hoặc dữ liệu sai" },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Hóa đơn không tồn tại" }
+        }
+      }
+    },
     "/api/admin/vouchers": {
       get: {
         tags: ["Admin Vouchers"],
@@ -2845,6 +3285,55 @@ const swaggerDocument = {
                               date: { type: "string", format: "date", example: "2026-06-15" },
                               total_revenue: { type: "number", example: 15400000 },
                               invoice_count: { type: "integer", example: 78 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      }
+    },
+    "/api/admin/reports/monthly-revenue": {
+      get: {
+        tags: ["Admin Reports"],
+        summary: "Báo cáo doanh thu 12 tháng",
+        description: "Lấy doanh thu tổng hợp của 12 tháng trong năm được chọn (mặc định là năm hiện tại, chỉ dành cho ADMIN và MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "year",
+            in: "query",
+            required: false,
+            schema: { type: "integer" },
+            description: "Năm cần lấy báo cáo (ví dụ: 2026)"
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              month: { type: "integer", example: 1, description: "Tháng trong năm (1-12)" },
+                              revenue: { type: "number", example: 125000000 },
+                              order_count: { type: "integer", example: 154 }
                             }
                           }
                         }

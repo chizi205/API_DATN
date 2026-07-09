@@ -65,7 +65,7 @@ class MioWebhookController {
                   transaction_type: "EARN",
                   points: finalPoints,
                   multiplier_applied: updatedInvoice.points_multiplier || 1,
-                  reference_type: "invoice",
+                  reference_type: "INVOICE",
                   reference_id: updatedInvoice.id,
                   description: `Tích điểm từ hóa đơn ${updatedInvoice.invoice_code} (MiO)`,
                 },
@@ -83,7 +83,7 @@ class MioWebhookController {
             final_amount: updatedInvoice.final_amount,
             paid_at: new Date(),
           });
-          
+
           if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
             try {
               await deviceService.sendNotificationToUser(

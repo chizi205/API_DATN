@@ -54,6 +54,17 @@ class ReportController {
       return ApiResponse.serverError(res, "Lỗi server khi lấy sản phẩm bán chạy");
     }
   }
+
+  async getMonthlyRevenue(req, res) {
+    try {
+      const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+      const stats = await reportRepository.getMonthlyRevenueStats(year);
+      return ApiResponse.success(res, stats, `Lấy báo cáo doanh thu 12 tháng năm ${year} thành công`);
+    } catch (error) {
+      console.error("Get Monthly Revenue Report Error:", error);
+      return ApiResponse.serverError(res, "Lỗi server khi lấy báo cáo doanh thu 12 tháng");
+    }
+  }
 }
 
 module.exports = new ReportController();

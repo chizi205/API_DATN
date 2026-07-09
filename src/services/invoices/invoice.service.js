@@ -31,11 +31,20 @@ class InvoiceService {
       const finalAmount =
         subTotal + (data.tax_amount || 0) + (data.service_charge || 0);
 
+      const crypto = require("crypto");
+      let claimQrToken = null;
+      let claimQrExpiredAt = null;
+
+      if (!data.member_id) {
+        claimQrToken = crypto.randomUUID();
+        claimQrExpiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      }
+
       // Tạo hóa đơn (chỉ tạo, chưa tính điểm)
       const invoiceData = {
         employee_id: data.employee_id,
         branch_id: data.branch_id,
-        member_id: null,
+        member_id: data.member_id || null,
         table_number: data.table_number || null,
         sub_total: subTotal,
         discount_amount: 0,
@@ -46,6 +55,8 @@ class InvoiceService {
         status: "DRAFT",
         tax_amount: data.tax_amount || 0,
         service_charge: data.service_charge || 0,
+        claim_qr_token: claimQrToken,
+        claim_qr_expired_at: claimQrExpiredAt,
       };
 
       const invoice = await invoiceRepo.create(invoiceData, client);

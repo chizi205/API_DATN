@@ -65,7 +65,7 @@ class PayosWebhookController {
                   transaction_type: "EARN",
                   points: finalPoints,
                   multiplier_applied: updatedInvoice.points_multiplier || 1,
-                  reference_type: "invoice",
+                  reference_type: "INVOICE",
                   reference_id: updatedInvoice.id,
                   description: `Tích điểm từ hóa đơn ${updatedInvoice.invoice_code} (PayOS)`,
                 },
