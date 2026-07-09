@@ -7,6 +7,7 @@ router.use("/member", require("./members/info.routes"));
 router.use("/member", require("./members/device.routes"));
 router.use("/member", require("./members/voucher.routes"));
 router.use("/member", require("./members/notification.routes"));
+router.use("/member", require("./members/selfPayment.routes"));
 router.use("/members", require("./members/claimPoints.routes"));
 
 //employee

@@ -287,8 +287,6 @@ class InvoiceRepository {
       member_id = $1,
       points_multiplier = $2,
       points_earned = $3,
-      claim_qr_token = NULL,
-      claim_qr_expired_at = NULL,
       updated_at = NOW()
     WHERE id = $4
     RETURNING *;

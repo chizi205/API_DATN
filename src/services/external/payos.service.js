@@ -1,6 +1,5 @@
 const axios = require("axios");
 const crypto = require("crypto");
-const invoiceService = require("../invoices/invoice.service");
 
 const createPaymentLink = async (invoice) => {
   const orderCode = Number(invoice.id) * 1000 + (Date.now() % 1000);

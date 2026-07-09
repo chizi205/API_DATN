@@ -138,6 +138,21 @@ class InvoiceService {
 
         await client.query("COMMIT");
 
+        // Notify socket
+        try {
+          const { getIO } = require("../../socket");
+          const io = getIO();
+          io.to(`invoice_${updatedInvoice.id}`).emit("PAYMENT_SUCCESS", {
+            invoice_id: updatedInvoice.id,
+            invoice_code: updatedInvoice.invoice_code,
+            status: "COMPLETED",
+            final_amount: updatedInvoice.final_amount,
+            paid_at: new Date(),
+          });
+        } catch (socketError) {
+          console.error("Socket error (non-fatal):", socketError);
+        }
+
         if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
           try {
             await deviceService.sendNotificationToUser(

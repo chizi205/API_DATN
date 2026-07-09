@@ -13,7 +13,7 @@ const createPaymentLink = async (invoice, paymentMethod) => {
 
     if (!config || !config.api_url || !config.api_key) {
       throw new Error(
-        "Cấu hình thanh toán Mió chưa đầy đủ (thiếu api_url hoặc api_key)",
+        "Cấu hình thanh toán Mio chưa đầy đủ (thiếu api_url hoặc api_key)",
       );
     }
 
@@ -33,7 +33,7 @@ const createPaymentLink = async (invoice, paymentMethod) => {
     });
     return response.data.data;
   } catch (error) {
-    console.error("Mió Payment Error:", error.response?.data || error.message);
+    console.error("Mio Payment Error:", error.response?.data || error.message);
 
     throw new Error(
       error.response?.data?.message ||

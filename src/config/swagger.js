@@ -38,6 +38,10 @@ const swaggerDocument = {
       name: "Member Device",
       description: "Các API liên quan đến thiết bị và đăng ký nhận thông báo FCM",
     },
+    {
+      name: "Member Self-Payment",
+      description: "Các API tự thanh toán và tự tích điểm cho Thành viên",
+    },
 
     // === EMPLOYEE APP ===
     {
@@ -1045,6 +1049,185 @@ const swaggerDocument = {
           },
           401: {
             description: "Chưa xác thực"
+          }
+        }
+      }
+    },
+    "/api/member/self-payment/preview": {
+      get: {
+        tags: ["Member Self-Payment"],
+        summary: "Xem trước thông tin thanh toán hoặc tích điểm",
+        description: "Quét claim_qr_token để kiểm tra hóa đơn. Nếu hóa đơn chưa thanh toán, trả về thông tin chi tiết hóa đơn, các voucher có thể áp dụng và phương thức thanh toán. Nếu hóa đơn đã thanh toán nhưng chưa tích điểm, trả về thông tin điểm tích lũy dự kiến.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "token",
+            in: "query",
+            required: true,
+            description: "Token tích điểm/thanh toán (claim_qr_token) của hóa đơn",
+            schema: {
+              type: "string",
+              example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+            }
+          },
+          {
+            name: "voucher_code",
+            in: "query",
+            required: false,
+            description: "Mã voucher của thành viên muốn áp thử để xem trước tiền giảm giá",
+            schema: {
+              type: "string",
+              example: "GIAM20K-9F3B1A2C"
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            action: {
+                              type: "string",
+                              enum: ["SELF_PAYMENT", "CLAIM_POINTS"],
+                              example: "SELF_PAYMENT"
+                            },
+                            invoice: {
+                              type: "object",
+                              properties: {
+                                id: { type: "integer", example: 1 },
+                                invoice_code: { type: "string", example: "INV-20260615-000001" },
+                                final_amount: { type: "number", example: 73000 },
+                                status: { type: "string", example: "DRAFT" }
+                              }
+                            },
+                            vouchers: {
+                              type: "array",
+                              description: "Danh sách voucher khả dụng (chỉ trả về khi action là SELF_PAYMENT)",
+                              items: {
+                                type: "object"
+                              }
+                            },
+                            payment_methods: {
+                              type: "array",
+                              description: "Danh sách phương thức thanh toán hoạt động (chỉ trả về khi action là SELF_PAYMENT)",
+                              items: {
+                                type: "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ hoặc token hết hạn/hóa đơn bị hủy"
+          },
+          401: {
+            description: "Chưa xác thực"
+          },
+          404: {
+            description: "Không tìm thấy hóa đơn hợp lệ"
+          }
+        }
+      }
+    },
+    "/api/member/self-payment/checkout": {
+      post: {
+        tags: ["Member Self-Payment"],
+        summary: "Thực hiện tự thanh toán hoặc tích điểm",
+        description: "Gửi yêu cầu thanh toán (nếu hóa đơn DRAFT) hoặc tích điểm (nếu hóa đơn COMPLETED) bằng claim_qr_token.",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token"],
+                properties: {
+                  token: {
+                    type: "string",
+                    example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+                    description: "Token thanh toán/tích điểm (claim_qr_token)"
+                  },
+                  voucher_code: {
+                    type: "string",
+                    example: "GIAM20K-9F3B1A2C",
+                    description: "Mã voucher của thành viên cần áp dụng (tùy chọn, chỉ cho SELF_PAYMENT)"
+                  },
+                  payment_method_id: {
+                    type: "integer",
+                    example: 2,
+                    description: "ID phương thức thanh toán (chỉ bắt buộc cho SELF_PAYMENT)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Thao tác thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            action: {
+                              type: "string",
+                              enum: ["SELF_PAYMENT", "CLAIM_POINTS"],
+                              example: "SELF_PAYMENT"
+                            },
+                            type: {
+                              type: "string",
+                              description: "Loại thanh toán (cash, payos, mio) - chỉ có khi action là SELF_PAYMENT",
+                              example: "payos"
+                            },
+                            checkout_url: {
+                              type: "string",
+                              description: "Link thanh toán nếu chọn payos/mio",
+                              example: "https://pay.payos.vn/web/..."
+                            },
+                            message: {
+                              type: "string",
+                              example: "Tích điểm thành công / Thanh toán thành công"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: {
+            description: "Yêu cầu không hợp lệ (ví dụ: thiếu token, voucher không hợp lệ, hoặc phương thức thanh toán không hợp lệ)"
+          },
+          401: {
+            description: "Chưa xác thực"
+          },
+          404: {
+            description: "Không tìm thấy hóa đơn"
           }
         }
       }
