@@ -391,6 +391,7 @@ class InvoiceRepository {
       i.status,
       i.final_amount,
       i.points_earned,
+      i.points_multiplier,
       i.created_at,
       i.paid_at,
       b.name AS branch_name,

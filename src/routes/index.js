@@ -8,11 +8,12 @@ router.use("/member", require("./members/device.routes"));
 router.use("/member", require("./members/voucher.routes"));
 router.use("/member", require("./members/notification.routes"));
 router.use("/member", require("./members/selfPayment.routes"));
-router.use("/members", require("./members/claimPoints.routes"));
+router.use("/member", require("./members/reservation.routes"));
 
 //employee
 router.use("/employee", require("./employees/auth.routes"));
 router.use("/employee", require("./employees/product.routes"));
+router.use("/employee", require("./employees/reservation.routes"));
 
 //admin
 router.use("/admin", require("./admin/admin.routes"));

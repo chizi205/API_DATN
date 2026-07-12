@@ -10,6 +10,8 @@ const PointConfigController = require("../../controllers/admin/pointConfig.contr
 const ReportController = require("../../controllers/admin/report.controller");
 const CustomerController = require("../../controllers/admin/customer.controller");
 const InvoiceController = require("../../controllers/admin/invoice.controller");
+const ProductController = require("../../controllers/admin/product.controller");
+const CategoryController = require("../../controllers/admin/category.controller");
 
 // Apply authentication to all admin sub-routes
 router.use(authenticateEmployee);
@@ -55,6 +57,20 @@ router.get("/reports/monthly-revenue", authorizeRoles("ADMIN", "MANAGER"), Repor
 router.get("/reports/members", authorizeRoles("ADMIN", "MANAGER"), ReportController.getMemberStats);
 router.get("/reports/top-customers", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopCustomers);
 router.get("/reports/top-products", authorizeRoles("ADMIN", "MANAGER"), ReportController.getTopProducts);
+
+// ==================== PRODUCT MANAGEMENT ====================
+router.get("/products", authorizeRoles("ADMIN", "MANAGER"), ProductController.getProducts);
+router.get("/products/:id", authorizeRoles("ADMIN", "MANAGER"), ProductController.getProductById);
+router.post("/products", authorizeRoles("ADMIN", "MANAGER"), ProductController.createProduct);
+router.put("/products/:id", authorizeRoles("ADMIN", "MANAGER"), ProductController.updateProduct);
+router.delete("/products/:id", authorizeRoles("ADMIN"), ProductController.deleteProduct);
+
+// ==================== CATEGORY MANAGEMENT ====================
+router.get("/categories", authorizeRoles("ADMIN", "MANAGER"), CategoryController.getCategories);
+router.get("/categories/:id", authorizeRoles("ADMIN", "MANAGER"), CategoryController.getCategoryById);
+router.post("/categories", authorizeRoles("ADMIN", "MANAGER"), CategoryController.createCategory);
+router.put("/categories/:id", authorizeRoles("ADMIN", "MANAGER"), CategoryController.updateCategory);
+router.delete("/categories/:id", authorizeRoles("ADMIN"), CategoryController.deleteCategory);
 
 module.exports = router;
 

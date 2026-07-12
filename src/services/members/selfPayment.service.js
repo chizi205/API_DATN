@@ -96,7 +96,7 @@ class SelfPaymentService {
     }
 
     // CASE 2: Hóa đơn chưa thanh toán (DRAFT) -> Cho phép tự thanh toán
-    if (invoice.status === "DRAFT") {
+    if (invoice.status === "DRAFT"|| invoice.status === "PENDING") {
       // Get invoice details
       const items = await invoiceRepo.getInvoiceDetails(invoice.id);
 
@@ -171,6 +171,21 @@ class SelfPaymentService {
 
       // Get active payment methods
       const paymentMethods = await paymentMethodRepo.getAllActive();
+
+      console.log({
+        action: "SELF_PAYMENT",
+        invoice: {
+          ...invoice,
+          voucher_discount: voucherDiscount,
+          final_amount: finalAmount,
+          points_earned: pointsEarned,
+          applied_member_voucher_id: appliedMemberVoucherId,
+          voucher_code: voucherCode || null,
+          items: items || [],
+        },
+        vouchers: formattedVouchers,
+        payment_methods: paymentMethods,
+      })
 
       return {
         action: "SELF_PAYMENT",
@@ -277,10 +292,10 @@ class SelfPaymentService {
         // Cập nhật hóa đơn
         const updateInvoiceQuery = `
           UPDATE invoices 
-          SET member_id = $1, points_claimed_at = NOW(), updated_at = NOW() 
-          WHERE id = $2;
+          SET member_id = $1, points_earned = $2, points_multiplier = $3, points_claimed_at = NOW(), updated_at = NOW() 
+          WHERE id = $4;
         `;
-        await client.query(updateInvoiceQuery, [memberId, invoice.id]);
+        await client.query(updateInvoiceQuery, [memberId, pointsToEarn, pointMultiplier, invoice.id]);
 
         // Ghi nhận transaction tích điểm
         const insertTxQuery = `
@@ -376,6 +391,20 @@ class SelfPaymentService {
 
         await client.query("COMMIT");
 
+        console.log({
+          action: "CLAIM_POINTS",
+          message: "Tích điểm thành công",
+          data: {
+            invoice_id: invoice.id,
+            invoice_code: invoice.invoice_code,
+            points_earned: pointsToEarn,
+            current_points: updatedMember.current_points,
+            total_accumulated_points: updatedMember.total_accumulated_points,
+            is_upgraded: isUpgraded,
+            new_tier_name: newTierName,
+          }
+        }) 
+
         return {
           action: "CLAIM_POINTS",
           message: "Tích điểm thành công",
@@ -394,7 +423,7 @@ class SelfPaymentService {
       // -------------------------------------------------------------
       // CASE 2: HÓA ĐƠN CHƯA THANH TOÁN -> TIẾN HÀNH THANH TOÁN
       // -------------------------------------------------------------
-      if (invoice.status === "DRAFT") {
+      if (invoice.status === "DRAFT" || invoice.status === "PENDING") {
         if (!paymentMethodId) {
           throw createError("Vui lòng chọn phương thức thanh toán", 400);
         }
@@ -425,7 +454,7 @@ class SelfPaymentService {
             FROM member_vouchers mv
             LEFT JOIN vouchers v ON mv.voucher_id = v.id
             WHERE mv.voucher_code = $1 AND mv.member_id = $2
-            FOR UPDATE;
+            FOR UPDATE OF mv;
           `;
           const { rows: voucherRows } = await client.query(queryVoucher, [voucherCode, memberId]);
           const memberVoucher = voucherRows[0];
@@ -531,7 +560,6 @@ class SelfPaymentService {
 
           await client.query("COMMIT");
 
-          // Notify StaffApp & MemberApp via socket
           try {
             const { getIO } = require("../../socket");
             const io = getIO();

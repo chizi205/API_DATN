@@ -42,6 +42,10 @@ const swaggerDocument = {
       name: "Member Self-Payment",
       description: "Các API tự thanh toán và tự tích điểm cho Thành viên",
     },
+    {
+      name: "Member Reservations",
+      description: "Các API đặt bàn/đặt lịch của Thành viên",
+    },
 
     // === EMPLOYEE APP ===
     {
@@ -55,6 +59,10 @@ const swaggerDocument = {
     {
       name: "Employee Invoices",
       description: "Các API quản lý và xử lý hóa đơn (chỉ dành cho Nhân viên)",
+    },
+    {
+      name: "Employee Reservations",
+      description: "Các API quản lý lịch đặt bàn dành cho Nhân viên",
     },
 
     // === ADMIN & MANAGER ===
@@ -82,8 +90,20 @@ const swaggerDocument = {
       name: "Admin Invoices",
       description: "Các API quản lý hóa đơn hệ thống (chỉ dành cho ADMIN/MANAGER)",
     },
+    {
+      name: "Admin Products",
+      description: "Các API quản lý sản phẩm (chỉ dành cho ADMIN/MANAGER)",
+    },
+    {
+      name: "Admin Categories",
+      description: "Các API quản lý loại/danh mục sản phẩm (chỉ dành cho ADMIN/MANAGER)",
+    },
 
     // === SYSTEM INTEGRATIONS ===
+    {
+      name: "Branches",
+      description: "Các API liên quan đến chi nhánh và cửa hàng",
+    },
     {
       name: "Payment Methods",
       description: "Các API quản lý và tra cứu phương thức thanh toán",
@@ -434,9 +454,362 @@ const swaggerDocument = {
           is_active: { type: "boolean", example: true }
         }
       },
+      CreateReservationRequest: {
+        type: "object",
+        required: ["branch_id", "reservation_time", "guest_count"],
+        properties: {
+          branch_id: {
+            type: "integer",
+            example: 1,
+            description: "ID của chi nhánh nhà hàng/quán",
+          },
+          reservation_time: {
+            type: "string",
+            format: "date-time",
+            example: "2026-07-20T18:30:00.000Z",
+            description: "Thời gian đặt lịch ở tương lai",
+          },
+          guest_count: {
+            type: "integer",
+            minimum: 1,
+            example: 4,
+            description: "Số lượng khách tham gia đặt bàn",
+          },
+          note: {
+            type: "string",
+            example: "Bàn gần cửa sổ, không hút thuốc",
+            description: "Ghi chú thêm (tùy chọn)",
+          },
+        },
+      },
     },
   },
   paths: {
+    "/api/branches": {
+      get: {
+        tags: ["Branches"],
+        summary: "Lấy danh sách chi nhánh/cửa hàng",
+        description: "Lấy danh sách các chi nhánh của hệ thống hỗ trợ lọc và phân trang bằng cursor.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "last_id",
+            in: "query",
+            required: false,
+            description: "ID cuối cùng của trang trước (cursor)",
+            schema: {
+              type: "integer",
+              example: 10
+            }
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng bản ghi muốn lấy (mặc định 20)",
+            schema: {
+              type: "integer",
+              example: 20
+            }
+          },
+          {
+            name: "is_active",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái hoạt động (true/false)",
+            schema: {
+              type: "boolean",
+              example: true
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Lấy danh sách chi nhánh thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            stores: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  name: { type: "string", example: "Chi nhánh Quận 1" },
+                                  address: { type: "string", example: "123 Nguyễn Huệ, Quận 1, TP. HCM" },
+                                  phone: { type: "string", example: "02812345678" },
+                                  is_active: { type: "boolean", example: true },
+                                  created_at: { type: "string", format: "date-time" },
+                                  updated_at: { type: "string", format: "date-time" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                limit: { type: "integer", example: 20 },
+                                has_more: { type: "boolean", example: false },
+                                next_last_id: { type: "integer", example: null, nullable: true }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
+    },
+    "/api/member/reservations": {
+      post: {
+        tags: ["Member Reservations"],
+        summary: "Tạo lịch đặt bàn mới",
+        description: "Thành viên tạo lịch hẹn đặt bàn trước tại một chi nhánh cụ thể.",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/CreateReservationRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Tạo lịch đặt bàn thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            member_id: { type: "integer", example: 12 },
+                            branch_id: { type: "integer", example: 1 },
+                            reservation_time: { type: "string", format: "date-time", example: "2026-07-20T18:30:00.000Z" },
+                            guest_count: { type: "integer", example: 4 },
+                            status: { type: "string", example: "PENDING" },
+                            note: { type: "string", example: "Bàn gần cửa sổ, không hút thuốc" },
+                            created_at: { type: "string", format: "date-time", example: "2026-07-12T19:30:00.000Z" },
+                            updated_at: { type: "string", format: "date-time", example: "2026-07-12T19:30:00.000Z" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          400: {
+            description: "Dữ liệu đầu vào không hợp lệ hoặc thời gian đặt lịch trong quá khứ/không hợp lệ",
+          },
+          401: {
+            description: "Chưa xác thực",
+          },
+          404: {
+            description: "Không tìm thấy chi nhánh",
+          },
+        },
+      },
+      get: {
+        tags: ["Member Reservations"],
+        summary: "Lấy danh sách lịch đặt bàn của thành viên",
+        description: "Lấy danh sách các lịch đặt bàn của thành viên hiện đang đăng nhập (hỗ trợ phân trang và lọc theo trạng thái).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "status",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái đặt bàn (PENDING, CONFIRMED, CANCELLED, COMPLETED)",
+            schema: {
+              type: "string",
+              example: "PENDING"
+            }
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng kết quả tối đa mỗi trang (mặc định 20)",
+            schema: {
+              type: "integer",
+              example: 20
+            }
+          },
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            description: "Trang kết quả muốn lấy (mặc định 1)",
+            schema: {
+              type: "integer",
+              example: 1
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Lấy danh sách đặt lịch thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            reservations: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  member_id: { type: "integer", example: 12 },
+                                  branch_id: { type: "integer", example: 1 },
+                                  reservation_time: { type: "string", format: "date-time", example: "2026-07-20T18:30:00.000Z" },
+                                  guest_count: { type: "integer", example: 4 },
+                                  status: { type: "string", example: "PENDING" },
+                                  note: { type: "string", example: "Bàn gần cửa sổ, không hút thuốc" },
+                                  created_at: { type: "string", format: "date-time" },
+                                  updated_at: { type: "string", format: "date-time" },
+                                  branch_name: { type: "string", example: "Chi nhánh Quận 1" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer", example: 10 },
+                                page: { type: "integer", example: 1 },
+                                limit: { type: "integer", example: 20 },
+                                total_pages: { type: "integer", example: 1 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực"
+          }
+        }
+      }
+    },
+    "/api/member/reservations/{id}/cancel": {
+      patch: {
+        tags: ["Member Reservations"],
+        summary: "Thành viên tự hủy lịch đặt bàn",
+        description: "Khách hàng tự hủy lịch đặt bàn của mình trước thời gian diễn ra. Hệ thống sẽ cập nhật trạng thái thành CANCELLED và gửi Socket thông báo cho nhân viên tại chi nhánh.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID của lịch đặt bàn cần hủy",
+            schema: {
+              type: "integer",
+              example: 2
+            }
+          }
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  cancel_reason: {
+                    type: "string",
+                    example: "Thay đổi kế hoạch cá nhân",
+                    description: "Lý do hủy bàn (tùy chọn)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Hủy lịch đặt bàn thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 2 },
+                            member_id: { type: "integer", example: 12 },
+                            branch_id: { type: "integer", example: 1 },
+                            reservation_time: { type: "string", format: "date-time" },
+                            guest_count: { type: "integer", example: 3 },
+                            status: { type: "string", example: "CANCELLED" },
+                            note: { type: "string", example: "" },
+                            cancel_reason: { type: "string", example: "Thay đổi kế hoạch cá nhân" },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: {
+            description: "Lịch đặt bàn đã bị hủy/từ chối hoặc hoàn thành từ trước"
+          },
+          401: {
+            description: "Chưa xác thực"
+          },
+          403: {
+            description: "Không có quyền hủy lịch đặt bàn của người khác"
+          },
+          404: {
+            description: "Không tìm thấy lịch đặt bàn"
+          }
+        }
+      }
+    },
     "/api/member/send-otp": {
       post: {
         tags: ["Member Auth"],
@@ -1388,6 +1761,213 @@ const swaggerDocument = {
         }
       }
     },
+    "/api/employee/reservations": {
+      get: {
+        tags: ["Employee Reservations"],
+        summary: "Lấy danh sách lịch đặt bàn",
+        description: "Lấy danh sách các lịch đặt bàn của khách hàng. Nhân viên/Staff chỉ xem được lịch của chi nhánh mình. Admin/Manager có thể xem toàn bộ hoặc lọc theo branch_id.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "branch_id",
+            in: "query",
+            required: false,
+            description: "ID chi nhánh muốn lọc (Chỉ có tác dụng với ADMIN/MANAGER)",
+            schema: {
+              type: "integer",
+              example: 1
+            }
+          },
+          {
+            name: "status",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái đặt bàn (PENDING, CONFIRMED, CANCELLED, COMPLETED)",
+            schema: {
+              type: "string",
+              example: "PENDING"
+            }
+          },
+          {
+            name: "date",
+            in: "query",
+            required: false,
+            description: "Lọc lịch đặt theo ngày cụ thể (định dạng YYYY-MM-DD)",
+            schema: {
+              type: "string",
+              format: "date",
+              example: "2026-07-20"
+            }
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng kết quả tối đa mỗi trang (mặc định 20)",
+            schema: {
+              type: "integer",
+              example: 20
+            }
+          },
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            description: "Trang kết quả muốn lấy (mặc định 1)",
+            schema: {
+              type: "integer",
+              example: 1
+            }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Lấy danh sách lịch đặt bàn thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            reservations: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  member_id: { type: "integer", example: 12 },
+                                  branch_id: { type: "integer", example: 1 },
+                                  reservation_time: { type: "string", format: "date-time", example: "2026-07-20T18:30:00.000Z" },
+                                  guest_count: { type: "integer", example: 4 },
+                                  status: { type: "string", example: "PENDING" },
+                                  note: { type: "string", example: "Bàn gần cửa sổ, không hút thuốc" },
+                                  created_at: { type: "string", format: "date-time" },
+                                  updated_at: { type: "string", format: "date-time" },
+                                  member_name: { type: "string", example: "Nguyễn Văn A" },
+                                  member_phone: { type: "string", example: "0987654321" },
+                                  branch_name: { type: "string", example: "Chi nhánh Quận 1" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer", example: 50 },
+                                page: { type: "integer", example: 1 },
+                                limit: { type: "integer", example: 20 },
+                                total_pages: { type: "integer", example: 3 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: {
+            description: "Chưa xác thực nhân viên"
+          }
+        }
+      }
+    },
+    "/api/employee/reservations/{id}/status": {
+      patch: {
+        tags: ["Employee Reservations"],
+        summary: "Cập nhật trạng thái lịch đặt bàn",
+        description: "Nhân viên xác nhận (CONFIRMED) hoặc từ chối/hủy (CANCELLED) lịch đặt bàn của khách hàng, sau đó hệ thống tự động gửi thông báo qua Firebase.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID của lịch đặt bàn",
+            schema: {
+              type: "integer",
+              example: 1
+            }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["status"],
+                properties: {
+                  status: {
+                    type: "string",
+                    enum: ["CONFIRMED", "CANCELLED", "COMPLETED"],
+                    example: "CONFIRMED",
+                    description: "Trạng thái mới cần cập nhật"
+                  },
+                  cancel_reason: {
+                    type: "string",
+                    example: "Nhà hàng đã hết bàn trống vào khung giờ này",
+                    description: "Lý do hủy đặt bàn (chỉ bắt buộc/khuyến nghị khi status = CANCELLED)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật trạng thái thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            member_id: { type: "integer", example: 12 },
+                            branch_id: { type: "integer", example: 1 },
+                            reservation_time: { type: "string", format: "date-time" },
+                            guest_count: { type: "integer", example: 6 },
+                            status: { type: "string", example: "CONFIRMED" },
+                            note: { type: "string", example: "" },
+                            cancel_reason: { type: "string", example: null, nullable: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: {
+            description: "Dữ liệu đầu vào hoặc trạng thái không hợp lệ"
+          },
+          401: {
+            description: "Chưa xác thực nhân viên"
+          },
+          403: {
+            description: "Không có quyền quản lý lịch đặt của chi nhánh khác"
+          },
+          404: {
+            description: "Không tìm thấy thông tin đặt bàn"
+          }
+        }
+      }
+    },
     "/api/employee/login": {
       post: {
         tags: ["Employee Auth"],
@@ -2241,6 +2821,603 @@ const swaggerDocument = {
           },
         },
       },
+    },
+    "/api/admin/products": {
+      get: {
+        tags: ["Admin Products"],
+        summary: "Lấy danh sách sản phẩm (Admin/Manager)",
+        description: "Lấy danh sách sản phẩm của hệ thống hỗ trợ lọc theo category, trạng thái is_active, tìm kiếm và phân trang.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            description: "Số trang kết quả (mặc định 1)",
+            schema: { type: "integer", example: 1 }
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng sản phẩm mỗi trang (mặc định 20)",
+            schema: { type: "integer", example: 20 }
+          },
+          {
+            name: "search",
+            in: "query",
+            required: false,
+            description: "Tìm kiếm sản phẩm theo tên",
+            schema: { type: "string", example: "cà phê" }
+          },
+          {
+            name: "category_id",
+            in: "query",
+            required: false,
+            description: "Lọc theo ID danh mục",
+            schema: { type: "integer", example: 2 }
+          },
+          {
+            name: "is_active",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái hoạt động (true/false)",
+            schema: { type: "boolean", example: true }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            products: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  category_id: { type: "integer", example: 2 },
+                                  name: { type: "string", example: "Cà phê sữa đá" },
+                                  description: { type: "string", example: "Cà phê truyền thống Việt Nam" },
+                                  base_price: { type: "number", example: 29000 },
+                                  image_url: { type: "string", example: "http://example.com/caphe.png" },
+                                  is_active: { type: "boolean", example: true },
+                                  created_at: { type: "string", format: "date-time" },
+                                  updated_at: { type: "string", format: "date-time" },
+                                  category_name: { type: "string", example: "Đồ uống" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer", example: 100 },
+                                page: { type: "integer", example: 1 },
+                                limit: { type: "integer", example: 20 },
+                                total_pages: { type: "integer", example: 5 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Products"],
+        summary: "Tạo sản phẩm mới",
+        description: "Tạo một sản phẩm mới trong hệ thống (chỉ dành cho ADMIN/MANAGER).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "base_price"],
+                properties: {
+                  category_id: { type: "integer", example: 2, description: "ID danh mục (tùy chọn)" },
+                  name: { type: "string", example: "Trà đào cam sả" },
+                  description: { type: "string", example: "Trà đào thơm ngon mát lạnh" },
+                  base_price: { type: "number", example: 39000 },
+                  image_url: { type: "string", example: "http://example.com/tradao.png" },
+                  is_active: { type: "boolean", example: true }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo sản phẩm thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 10 },
+                            category_id: { type: "integer", example: 2 },
+                            name: { type: "string", example: "Trà đào cam sả" },
+                            description: { type: "string", example: "Trà đào thơm ngon mát lạnh" },
+                            base_price: { type: "number", example: 39000 },
+                            image_url: { type: "string", example: "http://example.com/tradao.png" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu đầu vào không hợp lệ hoặc danh mục không tồn tại" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện" }
+        }
+      }
+    },
+    "/api/admin/products/{id}": {
+      get: {
+        tags: ["Admin Products"],
+        summary: "Lấy chi tiết sản phẩm",
+        description: "Lấy chi tiết của một sản phẩm cụ thể theo ID.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID sản phẩm",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            category_id: { type: "integer", example: 2 },
+                            name: { type: "string", example: "Cà phê sữa đá" },
+                            description: { type: "string", example: "Cà phê truyền thống" },
+                            base_price: { type: "number", example: 29000 },
+                            image_url: { type: "string", example: "http://example.com/caphe.png" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" },
+                            category_name: { type: "string", example: "Đồ uống" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Không tìm thấy sản phẩm" }
+        }
+      },
+      put: {
+        tags: ["Admin Products"],
+        summary: "Cập nhật sản phẩm",
+        description: "Cập nhật thông tin của sản phẩm hiện có (chỉ dành cho ADMIN/MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID sản phẩm",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  category_id: { type: "integer", example: 2 },
+                  name: { type: "string", example: "Cà phê sữa đá đặc biệt" },
+                  description: { type: "string", example: "Nhiều sữa hơn thơm béo hơn" },
+                  base_price: { type: "number", example: 35000 },
+                  image_url: { type: "string", example: "http://example.com/caphedacbiet.png" },
+                  is_active: { type: "boolean", example: true }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            category_id: { type: "integer", example: 2 },
+                            name: { type: "string", example: "Cà phê sữa đá đặc biệt" },
+                            description: { type: "string", example: "Nhiều sữa hơn thơm béo hơn" },
+                            base_price: { type: "number", example: 35000 },
+                            image_url: { type: "string", example: "http://example.com/caphedacbiet.png" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu cập nhật không hợp lệ hoặc danh mục không tồn tại" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện" },
+          404: { description: "Không tìm thấy sản phẩm" }
+        }
+      },
+      delete: {
+        tags: ["Admin Products"],
+        summary: "Xóa sản phẩm",
+        description: "Xóa mềm sản phẩm bằng cách chuyển trạng thái is_active thành false (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID sản phẩm",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Xóa sản phẩm thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện (chỉ ADMIN)" },
+          404: { description: "Không tìm thấy sản phẩm" }
+        }
+      }
+    },
+    "/api/admin/categories": {
+      get: {
+        tags: ["Admin Categories"],
+        summary: "Lấy danh sách danh mục (Admin/Manager)",
+        description: "Lấy danh sách danh mục/loại sản phẩm của hệ thống hỗ trợ lọc theo trạng thái is_active, tìm kiếm và phân trang.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            description: "Số trang kết quả (mặc định 1)",
+            schema: { type: "integer", example: 1 }
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description: "Số lượng danh mục mỗi trang (mặc định 20)",
+            schema: { type: "integer", example: 20 }
+          },
+          {
+            name: "search",
+            in: "query",
+            required: false,
+            description: "Tìm kiếm danh mục theo tên",
+            schema: { type: "string", example: "Đồ uống" }
+          },
+          {
+            name: "is_active",
+            in: "query",
+            required: false,
+            description: "Lọc theo trạng thái hoạt động (true/false)",
+            schema: { type: "boolean", example: true }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            categories: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  id: { type: "integer", example: 1 },
+                                  name: { type: "string", example: "Cà phê" },
+                                  description: { type: "string", example: "Các loại cà phê thơm ngon" },
+                                  is_active: { type: "boolean", example: true },
+                                  created_at: { type: "string", format: "date-time" },
+                                  updated_at: { type: "string", format: "date-time" }
+                                }
+                              }
+                            },
+                            pagination: {
+                              type: "object",
+                              properties: {
+                                total: { type: "integer", example: 10 },
+                                page: { type: "integer", example: 1 },
+                                limit: { type: "integer", example: 20 },
+                                total_pages: { type: "integer", example: 1 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền truy cập" }
+        }
+      },
+      post: {
+        tags: ["Admin Categories"],
+        summary: "Tạo danh mục mới",
+        description: "Tạo một danh mục sản phẩm mới trong hệ thống (chỉ dành cho ADMIN/MANAGER).",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name"],
+                properties: {
+                  name: { type: "string", example: "Bánh ngọt" },
+                  description: { type: "string", example: "Các loại bánh ngọt ăn kèm" },
+                  is_active: { type: "boolean", example: true }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Tạo danh mục thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 5 },
+                            name: { type: "string", example: "Bánh ngọt" },
+                            description: { type: "string", example: "Các loại bánh ngọt ăn kèm" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu đầu vào không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện" }
+        }
+      }
+    },
+    "/api/admin/categories/{id}": {
+      get: {
+        tags: ["Admin Categories"],
+        summary: "Lấy chi tiết danh mục",
+        description: "Lấy chi tiết của một danh mục cụ thể theo ID.",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID danh mục",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            name: { type: "string", example: "Cà phê" },
+                            description: { type: "string", example: "Các loại cà phê thơm ngon" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          404: { description: "Không tìm thấy danh mục" }
+        }
+      },
+      put: {
+        tags: ["Admin Categories"],
+        summary: "Cập nhật danh mục",
+        description: "Cập nhật thông tin của danh mục hiện có (chỉ dành cho ADMIN/MANAGER).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID danh mục",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", example: "Cà phê & Trà" },
+                  description: { type: "string", example: "Các loại đồ uống đá xay và trà nóng" },
+                  is_active: { type: "boolean", example: true }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: "Cập nhật thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/ApiResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer", example: 1 },
+                            name: { type: "string", example: "Cà phê & Trà" },
+                            description: { type: "string", example: "Các loại đồ uống đá xay và trà nóng" },
+                            is_active: { type: "boolean", example: true },
+                            created_at: { type: "string", format: "date-time" },
+                            updated_at: { type: "string", format: "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          400: { description: "Dữ liệu cập nhật không hợp lệ" },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện" },
+          404: { description: "Không tìm thấy danh mục" }
+        }
+      },
+      delete: {
+        tags: ["Admin Categories"],
+        summary: "Xóa danh mục",
+        description: "Xóa mềm danh mục sản phẩm bằng cách chuyển trạng thái is_active thành false (chỉ dành cho ADMIN).",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            description: "ID danh mục",
+            schema: { type: "integer", example: 1 }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Xóa danh mục thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          401: { description: "Chưa xác thực" },
+          403: { description: "Không có quyền thực hiện (chỉ ADMIN)" },
+          404: { description: "Không tìm thấy danh mục" }
+        }
+      }
     },
     "/api/admin/employees": {
       get: {

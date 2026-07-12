@@ -20,6 +20,7 @@ const initSocket = (server) => {
 
     socket.on("join_branch", (branchId) => {
       socket.join(`branch_${branchId}`);
+       console.log(`Socket ${socket.id} joined room: branch_${branchId}`);
     });
 
     socket.on("disconnect", () => {
