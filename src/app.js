@@ -8,6 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./config/swagger');
 
 const app = express();
+app.set('trust proxy', 1); // Tin tưởng proxy (ngrok, nginx, etc.) để lấy đúng client IP
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

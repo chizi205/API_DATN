@@ -14,9 +14,11 @@ const validate = require("../../middleware/validate");
 const verifyRegistrationToken = require("../../middleware/verifyRegistrationToken");
 const authenticate = require("../../middleware/auth");
 
-router.post("/send-otp", sendOtpValidation, validate, sendOtpController);
+const { sendOtpLimiter, verifyOtpLimiter } = require("../../middleware/rateLimiter.middleware");
 
-router.post("/verify-otp", verifyOtpValidation, validate, verifyOtpController);
+router.post("/send-otp", sendOtpLimiter, sendOtpValidation, validate, sendOtpController);
+
+router.post("/verify-otp", verifyOtpLimiter, verifyOtpValidation, validate, verifyOtpController);
 
 router.post(
   "/complete-registration",

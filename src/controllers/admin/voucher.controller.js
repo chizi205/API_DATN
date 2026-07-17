@@ -33,7 +33,7 @@ class VoucherController {
 
   async createVoucher(req, res) {
     try {
-      const {
+      let {
         code, title, discount_type, discount_value, max_discount,
         point_cost, stock_quantity, applicable_tiers, valid_from,
         valid_to, expiry_days, is_active
@@ -41,6 +41,15 @@ class VoucherController {
 
       if (!code || !title || !discount_type || discount_value === undefined) {
         return ApiResponse.error(res, "Vui lòng nhập đầy đủ mã, tiêu đề, loại giảm giá và giá trị giảm giá", 400);
+      }
+
+      let normalizedType = discount_type.toString().toUpperCase();
+      if (normalizedType === "PERCENTAGE") {
+        normalizedType = "PERCENT";
+      }
+
+      if (normalizedType !== "PERCENT" && normalizedType !== "FIXED") {
+        return ApiResponse.error(res, "Loại giảm giá không hợp lệ. Chỉ chấp nhận FIXED hoặc PERCENT/PERCENTAGE", 400);
       }
 
       const existing = await voucherRepository.findByCode(code);
@@ -51,7 +60,7 @@ class VoucherController {
       const newVoucher = await voucherRepository.createVoucher({
         code,
         title,
-        discount_type,
+        discount_type: normalizedType,
         discount_value,
         max_discount,
         point_cost,
@@ -73,7 +82,7 @@ class VoucherController {
   async updateVoucher(req, res) {
     try {
       const { id } = req.params;
-      const data = req.body;
+      const data = { ...req.body };
 
       const voucher = await voucherRepository.findById(id);
       if (!voucher) {
@@ -85,6 +94,17 @@ class VoucherController {
         if (existing) {
           return ApiResponse.error(res, "Mã ưu đãi mới đã được sử dụng", 400);
         }
+      }
+
+      if (data.discount_type) {
+        let normalizedType = data.discount_type.toString().toUpperCase();
+        if (normalizedType === "PERCENTAGE") {
+          normalizedType = "PERCENT";
+        }
+        if (normalizedType !== "PERCENT" && normalizedType !== "FIXED") {
+          return ApiResponse.error(res, "Loại giảm giá không hợp lệ. Chỉ chấp nhận FIXED hoặc PERCENT/PERCENTAGE", 400);
+        }
+        data.discount_type = normalizedType;
       }
 
       const updatedVoucher = await voucherRepository.updateVoucher(id, data);

@@ -53,7 +53,6 @@ class ReportRepository {
       GROUP BY TO_CHAR(paid_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')
       ORDER BY date ASC;
     `;
-    console.log(query)
 
     const { rows } = await pool.query(query, params);
     return rows.map(r => ({

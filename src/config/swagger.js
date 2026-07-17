@@ -370,7 +370,7 @@ const swaggerDocument = {
         properties: {
           code: { type: "string", example: "GIAM20K" },
           title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
-          discount_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], example: "FIXED" },
+          discount_type: { type: "string", enum: ["FIXED", "PERCENT"], example: "FIXED" },
           discount_value: { type: "number", example: 20000 },
           max_discount: { type: "number", example: 20000, nullable: true },
           point_cost: { type: "integer", example: 50 },
@@ -387,7 +387,7 @@ const swaggerDocument = {
         properties: {
           code: { type: "string", example: "GIAM20K" },
           title: { type: "string", example: "Giảm 20k cho đơn từ 100k" },
-          discount_type: { type: "string", enum: ["FIXED", "PERCENTAGE"], example: "FIXED" },
+          discount_type: { type: "string", enum: ["FIXED", "PERCENT"], example: "FIXED" },
           discount_value: { type: "number", example: 20000 },
           max_discount: { type: "number", example: 20000, nullable: true },
           point_cost: { type: "integer", example: 50 },
