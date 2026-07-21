@@ -80,19 +80,18 @@ class VoucherService {
   async redeemVoucher(memberId, voucherId) {
     const crypto = require("crypto");
 
-    // 1. Fetch member details
+    
     const member = await voucherRepository.getMemberWithTier(memberId);
     if (!member) {
       throw new Error("MEMBER_NOT_FOUND");
     }
 
-    // 2. Fetch voucher details
+
     const voucher = await voucherRepository.getVoucherById(voucherId);
     if (!voucher) {
       throw new Error("VOUCHER_NOT_FOUND");
     }
 
-    // 3. Validate voucher status
     if (!voucher.is_active) {
       throw new Error("VOUCHER_INACTIVE");
     }
@@ -109,7 +108,6 @@ class VoucherService {
       throw new Error("VOUCHER_EXPIRED");
     }
 
-    // 4. Validate tier eligibility
     const applicableTiers = (voucher.applicable_tiers || []).map(Number);
     const memberTierId = member.tier_id ? Number(member.tier_id) : null;
     const hasTierLimit = applicableTiers.length > 0;
@@ -118,20 +116,19 @@ class VoucherService {
       throw new Error("TIER_NOT_ELIGIBLE");
     }
 
-    // 5. Validate points balance
     const memberPoints = member.current_points || 0;
     if (memberPoints < (voucher.point_cost || 0)) {
       throw new Error("INSUFFICIENT_POINTS");
     }
 
-    // 6. Calculate expiry date and generate unique code
+
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + (voucher.expiry_days || 30));
 
     const uniqueSuffix = crypto.randomBytes(4).toString("hex").toUpperCase();
     const voucherCode = `${voucher.code}-${uniqueSuffix}`;
 
-    // 7. Perform db transaction
+
     const { memberVoucher, newPoints } = await voucherRepository.redeemVoucherTransaction(
       memberId,
       voucher.id,

@@ -61,7 +61,7 @@ class VoucherRepository {
     let index = 1;
 
     const fields = [
-      "code", "title", "discount_type", "discount_value", "max_discount",
+      "code", "benefits", "discount_type", "discount_value", "max_discount",
       "point_cost", "stock_quantity", "applicable_tiers", "valid_from",
       "valid_to", "expiry_days", "is_active"
     ];

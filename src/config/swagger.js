@@ -12,7 +12,7 @@ const swaggerDocument = {
   },
   servers: [
     {
-      url: "http://localhost:3100",
+      url: process.env.PUBLIC_URL || 'http://localhost:3100',
       description: "Local server",
     },
   ],
