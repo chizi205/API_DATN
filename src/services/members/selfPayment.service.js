@@ -17,7 +17,6 @@ const createError = (message, statusCode) => {
 
 class SelfPaymentService {
   async previewPayment(token, memberId, voucherCode = null) {
-    // Find invoice by token
     const queryInvoice = `
       SELECT * FROM invoices 
       WHERE claim_qr_token = $1;
@@ -40,13 +39,11 @@ class SelfPaymentService {
       throw createError("Hóa đơn này đã bị hủy", 400);
     }
 
-    // CASE 1: Hóa đơn đã thanh toán nhưng chưa tích điểm -> Cho phép tích điểm
     if (invoice.status === "COMPLETED") {
       if (invoice.member_id !== null) {
         throw createError("Hóa đơn này đã được tích điểm trước đó", 400);
       }
 
-      // Lấy cấu hình điểm đang hoạt động
       const queryConfig = `
         SELECT spend_amount, earn_points 
         FROM point_configs 
@@ -95,9 +92,7 @@ class SelfPaymentService {
       };
     }
 
-    // CASE 2: Hóa đơn chưa thanh toán (DRAFT) -> Cho phép tự thanh toán
     if (invoice.status === "DRAFT"|| invoice.status === "PENDING") {
-      // Get invoice details
       const items = await invoiceRepo.getInvoiceDetails(invoice.id);
 
       let voucherDiscount = 0;
@@ -161,7 +156,6 @@ class SelfPaymentService {
         }
       }
 
-      // Get member available vouchers
       const vouchers = await voucherRepository.getMemberVouchers(memberId, "AVAILABLE");
       const formattedVouchers = vouchers.map((v) => ({
         ...v,
@@ -211,7 +205,7 @@ class SelfPaymentService {
     try {
       await client.query("BEGIN");
 
-      // 1. Fetch and lock invoice by claim_qr_token
+
       const queryInvoice = `
         SELECT * FROM invoices 
         WHERE claim_qr_token = $1
@@ -235,15 +229,13 @@ class SelfPaymentService {
         throw createError("Hóa đơn này đã bị hủy", 400);
       }
 
-      // -------------------------------------------------------------
-      // CASE 1: HÓA ĐƠN ĐÃ THANH TOÁN -> TIẾN HÀNH TÍCH ĐIỂM
-      // -------------------------------------------------------------
+
       if (invoice.status === "COMPLETED") {
         if (invoice.member_id !== null) {
           throw createError("Hóa đơn này đã được tích điểm trước đó", 400);
         }
 
-        // Lấy cấu hình điểm
+
         const queryConfig = `
           SELECT spend_amount, earn_points 
           FROM point_configs 
@@ -258,7 +250,7 @@ class SelfPaymentService {
           throw createError("Hệ thống chưa cấu hình quy đổi điểm thưởng", 400);
         }
 
-        // Khóa dòng thông tin thành viên và lấy hệ số nhân điểm của hạng hiện tại
+      
         const queryMember = `
           SELECT m.id, m.tier_id, m.current_points, m.total_accumulated_points, t.point_multiplier
           FROM members m
@@ -273,7 +265,7 @@ class SelfPaymentService {
           throw createError("Không tìm thấy thông tin thành viên", 404);
         }
 
-        // Tính toán điểm thực tế
+    
         const finalAmount = Number(invoice.final_amount);
         const spendAmount = Number(config.spend_amount);
         const earnPoints = Number(config.earn_points);
@@ -289,7 +281,7 @@ class SelfPaymentService {
         const oldAccumulatedPoints = Number(member.total_accumulated_points);
         const newAccumulatedPoints = oldAccumulatedPoints + pointsToEarn;
 
-        // Cập nhật hóa đơn
+     
         const updateInvoiceQuery = `
           UPDATE invoices 
           SET member_id = $1, points_earned = $2, points_multiplier = $3, points_claimed_at = NOW(), updated_at = NOW() 
@@ -297,7 +289,7 @@ class SelfPaymentService {
         `;
         await client.query(updateInvoiceQuery, [memberId, pointsToEarn, pointMultiplier, invoice.id]);
 
-        // Ghi nhận transaction tích điểm
+
         const insertTxQuery = `
           INSERT INTO point_transactions (
             member_id, transaction_type, points, multiplier_applied, 
@@ -313,7 +305,6 @@ class SelfPaymentService {
           `Tích điểm từ hóa đơn ${invoice.invoice_code} qua mã QR gộp`,
         ]);
 
-        // Cập nhật điểm cho thành viên
         const updateMemberQuery = `
           UPDATE members 
           SET 
@@ -327,7 +318,6 @@ class SelfPaymentService {
         const { rows: updatedMemberRows } = await client.query(updateMemberQuery, [pointsToEarn, memberId]);
         const updatedMember = updatedMemberRows[0];
 
-        // Xử lý thăng hạng nếu có
         const queryHighestTier = `
           SELECT id, tier_name, min_points 
           FROM membership_tiers 
@@ -368,7 +358,6 @@ class SelfPaymentService {
           isUpgraded = true;
           newTierName = highestTier.tier_name;
 
-          // Tạo thông báo thăng hạng
           await notificationRepository.createNotification({
             member_id: memberId,
             title: "Thăng hạng thành viên!",
@@ -379,7 +368,6 @@ class SelfPaymentService {
           }, client);
         }
 
-        // Thông báo tích điểm thành công
         await notificationRepository.createNotification({
           member_id: memberId,
           title: "Tích lũy điểm thành công",
@@ -420,9 +408,7 @@ class SelfPaymentService {
         };
       }
 
-      // -------------------------------------------------------------
-      // CASE 2: HÓA ĐƠN CHƯA THANH TOÁN -> TIẾN HÀNH THANH TOÁN
-      // -------------------------------------------------------------
+ 
       if (invoice.status === "DRAFT" || invoice.status === "PENDING") {
         if (!paymentMethodId) {
           throw createError("Vui lòng chọn phương thức thanh toán", 400);
@@ -533,13 +519,12 @@ class SelfPaymentService {
         ]);
         let updatedInvoice = updatedInvoiceRows[0];
 
-        // Fetch selected payment method
+      
         const paymentMethod = await paymentMethodRepo.findById(paymentMethodId, client);
         if (!paymentMethod || !paymentMethod.is_active) {
           throw createError("Phương thức thanh toán không hợp lệ hoặc đã bị khóa", 400);
         }
 
-        // Perform checkout depending on payment method
         if (paymentMethod.code === "cash") {
           const updateStatusQuery = `
             UPDATE invoices

@@ -12,7 +12,6 @@ class ReservationService {
   async createReservation(memberId, data) {
     const { branch_id, reservation_time, guest_count, note } = data;
 
-    // 1. Verify branch exists and is active
     const branchQuery = `
       SELECT id, name, is_active FROM branches WHERE id = $1;
     `;
@@ -23,10 +22,9 @@ class ReservationService {
       throw createError("Không tìm thấy chi nhánh", 404);
     }
     if (!branch.is_active) {
-      throw createError("Chi nhánh hiện tại không hoạt động", 400);
+      throw createError("Chi nhánh hiện tại không  động", 400);
     }
 
-    // 2. Validate reservation time (must be in the future)
     const bookingTime = new Date(reservation_time);
     if (isNaN(bookingTime.getTime())) {
       throw createError("Thời gian đặt lịch không hợp lệ", 400);
@@ -35,14 +33,12 @@ class ReservationService {
       throw createError("Thời gian đặt lịch phải ở tương lai", 400);
     }
 
-    // 3. Get member details to attach to notification
     const memberQuery = `
       SELECT full_name, phone_number FROM members WHERE id = $1;
     `;
     const { rows: memberRows } = await pool.query(memberQuery, [memberId]);
     const member = memberRows[0];
 
-    // 4. Create reservation in database
     const reservation = await reservationRepository.createReservation({
       member_id: memberId,
       branch_id,
@@ -51,7 +47,6 @@ class ReservationService {
       note,
     });
 
-    // 5. Send socket notification to the branch room (for employees/staff to receive)
     try {
       const io = getIO();
       const memberName = member ? member.full_name : "Khách hàng";

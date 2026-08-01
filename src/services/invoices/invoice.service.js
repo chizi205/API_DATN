@@ -40,7 +40,7 @@ class InvoiceService {
         claimQrExpiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       }
 
-      // Tạo hóa đơn (chỉ tạo, chưa tính điểm)
+
       const invoiceData = {
         employee_id: data.employee_id,
         branch_id: data.branch_id,
@@ -50,8 +50,8 @@ class InvoiceService {
         discount_amount: 0,
         voucher_discount: 0,
         final_amount: finalAmount,
-        points_earned: 0, // Mặc định = 0
-        points_multiplier: 1.0, // Mặc định = 1.0
+        points_earned: 0,
+        points_multiplier: 1.0,
         status: "DRAFT",
         tax_amount: data.tax_amount || 0,
         service_charge: data.service_charge || 0,
@@ -61,7 +61,7 @@ class InvoiceService {
 
       const invoice = await invoiceRepo.create(invoiceData, client);
 
-      // Tạo chi tiết hóa đơn
+
       const detailsWithInvoiceId = items.map((item) => ({
         ...item,
         invoice_id: invoice.id,
@@ -112,7 +112,7 @@ class InvoiceService {
         if (updatedInvoice.member_id && updatedInvoice.points_earned > 0) {
           finalPoints = Math.floor(
             updatedInvoice.points_earned *
-              (updatedInvoice.points_multiplier || 1),
+            (updatedInvoice.points_multiplier || 1),
           );
 
           if (finalPoints > 0) {
@@ -138,7 +138,6 @@ class InvoiceService {
 
         await client.query("COMMIT");
 
-        // Notify socket
         try {
           const { getIO } = require("../../socket");
           const io = getIO();
@@ -402,7 +401,6 @@ class InvoiceService {
     try {
       await client.query("BEGIN");
 
-      // 1. Fetch invoice
       const invoice = await invoiceRepo.findById(invoiceId, client);
       if (!invoice) {
         throw new Error("INVOICE_NOT_FOUND");
@@ -412,7 +410,6 @@ class InvoiceService {
         throw new Error("INVOICE_NOT_DRAFT");
       }
 
-      // 2. Fetch member voucher
       const memberVoucher = await voucherRepository.getMemberVoucherByCode(
         voucherCode,
         client,
@@ -425,7 +422,6 @@ class InvoiceService {
         throw new Error("VOUCHER_ALREADY_USED_OR_EXPIRED");
       }
 
-      // Check expiry date
       const today = new Date().toISOString().slice(0, 10);
       const expiryDateStr = new Date(memberVoucher.expiry_date)
         .toISOString()
@@ -465,7 +461,7 @@ class InvoiceService {
         subTotal - discountAmount - voucherDiscount + taxAmount + serviceCharge,
       );
 
-      // 5. Recalculate points earned
+
       const pointConfigs = await invoiceRepo.getActivePointConfig(client);
       let pointsEarned = 0;
 
@@ -476,7 +472,6 @@ class InvoiceService {
           Number(config.earn_points);
       }
 
-      // 6. Update database
       const updatedInvoice = await invoiceRepo.applyVoucherToInvoice(
         invoiceId,
         memberVoucher.id,
