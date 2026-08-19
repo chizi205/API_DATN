@@ -5,23 +5,21 @@ services:
     image: postgres:15-alpine
     container_name: postgres_db
     restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "0915051590"
-      POSTGRES_DB: render_backup
-    ports:
-      - "5432:5432"
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   app:
     build: .
     container_name: node_api_app
     restart: always
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100" # Chỉ cho phép truy cập nội bộ từ Nginx
     env_file:
       - .env
     depends_on:
       - db
+
 volumes:
   postgres_data:
