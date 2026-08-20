@@ -9,4 +9,5 @@ const PORT = process.env.PORT || 3100;
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
+  console.log("Auto-deploy qua GitHub Actions đã hoạt động mượt mà!");
 });
